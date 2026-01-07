@@ -1,8 +1,17 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file in project root
+env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
 from mcp.server.fastmcp import FastMCP
-from .tools.stats import initialize_stats_tools
-from .tools.visual import initialize_visual_tools
+from .tools.stats import register_stats_tools
+from .tools.visual import register_viz_tools
+from .tools.annotation import register_annotation_tools
 
 
 mcp = FastMCP("eoe-tools", stateless_http=True, json_response=True)
@@ -21,8 +30,9 @@ def echo(message: str) -> str:
     return f"echo: {message}"
 
 #init tools
-initialize_stats_tools(mcp)
-initialize_visual_tools(mcp)
+register_stats_tools(mcp)
+register_viz_tools(mcp)
+register_annotation_tools(mcp)
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
