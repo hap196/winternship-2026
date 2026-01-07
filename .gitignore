@@ -1,3 +1,17 @@
 venv
 eoe_program_activity.h5ad
 programs_with_loadings.json
+node_modules/
+.next/
+.env
+.env.local
+.env.production.local
+.env.development.local
+data/
+*.log
+.DS_Store
+dist/
+build/
+.turbo
+.vercel
+data/temp/
