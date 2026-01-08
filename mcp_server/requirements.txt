@@ -8,3 +8,5 @@ statsmodels
 plotly
 openai
 python-dotenv
+
+anndata
