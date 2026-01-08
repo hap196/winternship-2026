@@ -9,13 +9,13 @@ from .data import _load_h5ad, _load_json
 def register_stats_tools(mcp):
 
     @mcp.tool()
-    def gene_to_programs(json_id: str, gene: str) -> list[str]:
+    def gene_to_programs(json_id: str, gene: str) -> dict:
         """
         Lookup of gene in programs
         """
         data = _load_json(json_id)
         if data is None:
-            return []
+            return {"gene": gene, "found": False, "programs": []}
         
         g = gene.upper()
         hits = []
@@ -23,13 +23,26 @@ def register_stats_tools(mcp):
             if isinstance(prog_data, dict) and "loadings" in prog_data:
                 genes_in_prog = [str(x).upper() for x in prog_data["loadings"].keys()]
                 if g in genes_in_prog:
-                    hits.append(prog_idx)
-        return hits
+                    loading = float(prog_data["loadings"].get(gene, 0) or prog_data["loadings"].get(g, 0))
+                    hits.append({
+                        "program": prog_idx,
+                        "h5ad_column": f"new_program_{prog_idx}_activity_scaled",
+                        "loading": loading
+                    })
+        
+        hits.sort(key=lambda x: abs(x["loading"]), reverse=True)
+        
+        return {
+            "gene": gene,
+            "found": len(hits) > 0,
+            "n_programs": len(hits),
+            "programs": hits
+        }
 
     @mcp.tool()
     def jaccard_topk(json_id: str, target_program: str, top_k: int = 20) -> list[dict]:
         """Jaccard similarity by overlap of gene sets"""
-        
+
         data = _load_json(json_id)
         if data is None:
             return [{"error": f"Dataset {json_id} not found"}]

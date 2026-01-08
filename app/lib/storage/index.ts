@@ -207,7 +207,7 @@ export async function getSessionDatasets(sessionId: string): Promise<Dataset[]> 
     if (file.endsWith('.json')) {
       const data = JSON.parse(fs.readFileSync(path.join(DATASETS_DIR, file), 'utf-8'));
       // Return ALL datasets for single-user app (no session isolation for datasets)
-      datasets.push(data);
+        datasets.push(data);
     }
   }
   

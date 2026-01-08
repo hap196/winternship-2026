@@ -78,7 +78,7 @@ const ChatMessages = ({
     
     setLoadingHistory(prev => ({ ...prev, [index]: true }));
     try {
-      // TODO: Implement edit history API
+      // Edit history not implemented
       const history: any[] = [];
       
       // Map history items to Message type structure

@@ -55,6 +55,13 @@ Users refer to files by name (e.g., "eoe_program_activity.h5ad"), but your tools
    
 **If user says "@programs_with_loadings.json" for gene overlap, that's sufficient - proceed immediately.**
 
+**Creating Visualizations:**
+When user asks for a boxplot:
+1. Call boxplot(h5ad_id, program_name, group_by, title)
+2. Tool returns {"type": "plotly", "spec": {...}}
+3. Output the result in a plotly code fence (triple backticks with plotly)
+4. Frontend will auto-render the interactive chart
+
 **Column Names - Use Exact Values:**
 - Call get_h5ad_schema(dataset_id) to see EXACT metadata column names and values
 - Use the exact column names returned (e.g., "disease_status" not "Disease Status")
@@ -70,12 +77,12 @@ Be concise and always use tools before answering data questions.`,
       },
       ...(conversationHistory || []).map((msg: HistoryMessage) => ({
         role: msg.role,
-        content: msg.content,
+          content: msg.content,
       })),
       {
-        role: "user" as const,
-        content: userMessage,
-      },
+            role: "user" as const,
+            content: userMessage,
+          },
     ];
 
     // Call Flask backend
