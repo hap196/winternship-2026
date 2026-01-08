@@ -43,5 +43,4 @@ def register_visual_tools(mcp):
 
         fig = px.bar({"program": progs, "overlap": vals}, x="program", y="overlap", title=title)
         fig.update_layout(xaxis_tickangle=-45)
-        
         return {"type": "plotly", "spec": fig.to_plotly_json()}
