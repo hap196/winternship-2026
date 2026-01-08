@@ -100,8 +100,7 @@ export default function ChatPageContent() {
   }, [sendMessage, activeDatasets]);
 
   const handleEditMessage = useCallback(async (messageIndex: number, newContent: string) => {
-    // TODO: Implement edit message
-    console.log('Edit message not yet implemented');
+    // Edit message functionality not implemented
   }, []);
 
   useEffect(() => {

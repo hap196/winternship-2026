@@ -12,6 +12,7 @@ from mcp.server.fastmcp import FastMCP
 from .tools.stats import register_stats_tools
 from .tools.visual import register_visual_tools
 from .tools.annotation import register_annotation_tools
+from .tools.data import register_data_tools
 
 
 mcp = FastMCP("eoe-tools", stateless_http=True, json_response=True)
@@ -33,6 +34,7 @@ def echo(message: str) -> str:
 register_stats_tools(mcp)
 register_visual_tools(mcp)
 register_annotation_tools(mcp)
+register_data_tools(mcp)
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")

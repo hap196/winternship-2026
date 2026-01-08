@@ -60,42 +60,29 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [selectedModel]);
 
   useEffect(() => {
-    console.log('useEffect triggered with urlConversationId:', urlConversationId);
-    console.log('justCreatedConvIdRef.current:', justCreatedConvIdRef.current);
-    
     if (urlConversationId && urlConversationId !== 'new') {
       if (urlConversationId === justCreatedConvIdRef.current) {
-        console.log('Skipping load for just-created conversation');
         justCreatedConvIdRef.current = null;
         return;
       }
-      console.log('Calling loadConversation');
       loadConversation(urlConversationId);
     } else if (!urlConversationId || urlConversationId === 'new') {
-      console.log('Starting new chat');
       startNewChat();
     }
   }, [urlConversationId]);
 
   const loadConversation = async (conversationId: string) => {
     try {
-      console.log('Loading conversation:', conversationId);
       setIsLoading(true);
       const response = await fetch(`/api/conversations/list`);
       const { conversations }: { conversations: Conversation[] } = await response.json();
       const conversation = conversations.find(c => c.id === conversationId);
       
-      console.log('Found conversation:', conversation);
-      
       if (conversation) {
-        console.log('Setting messages to:', conversation.messages);
         setCurrentConversationId(conversation.id);
         setCurrentConversationTitle(conversation.title);
         setCurrentProjectId(conversation.projectId || null);
         setMessages(conversation.messages || []);
-        console.log('Messages set complete');
-      } else {
-        console.log('Conversation not found');
       }
     } catch (error) {
       console.error('Failed to load conversation:', error);
@@ -105,7 +92,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   };
 
   const startNewChat = () => {
-    console.log('startNewChat called');
     setMessages([]);
     setCurrentConversationId(null);
     setCurrentConversationTitle(null);
@@ -157,7 +143,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
-    setIsTypingResponse(true);
 
     const controller = new AbortController();
     setAbortController(controller);
@@ -199,6 +184,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      setIsTypingResponse(true);
 
       const reader = responseStream.getReader();
       const decoder = new TextDecoder();

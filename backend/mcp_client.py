@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client 

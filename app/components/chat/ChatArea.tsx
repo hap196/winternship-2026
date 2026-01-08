@@ -203,6 +203,20 @@ const ChatArea = ({
       });
     }
 
+    // Check if any mentioned datasets are no longer in the text
+    for (const dataset of mentionedDatasets) {
+      const mentionText = `@${dataset.file?.name}`;
+      if (!text.includes(mentionText)) {
+        // Remove from mentioned datasets
+        setMentionedDatasets(prev => prev.filter(d => d.file?.name !== dataset.file?.name));
+        // Remove from active datasets
+        const activeIndex = uploadedData.findIndex(d => d.file?.name === dataset.file?.name);
+        if (activeIndex !== -1) {
+          onRemoveDataset(activeIndex);
+        }
+      }
+    }
+
     // Check for @ mention
     const selection = window.getSelection();
     if (!selection || !textInputRef.current) return;
@@ -274,6 +288,84 @@ const ChatArea = ({
     sel?.removeAllRanges();
     sel?.addRange(range);
     textInputRef.current.focus();
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    
+    const pastedText = e.clipboardData.getData('text/plain');
+    const mentionPattern = /@([^\s]+\.(h5ad|json))/g;
+    
+    if (!textInputRef.current) return;
+    
+    // Parse the text and create fragments
+    const fragments: Array<{ type: 'text' | 'mention'; content: string; dataset?: ParsedDataset }> = [];
+    let lastIndex = 0;
+    
+    const matches = [...pastedText.matchAll(mentionPattern)];
+    
+    for (const match of matches) {
+      const filename = match[1];
+      const matchIndex = match.index!;
+      
+      // Add text before the match
+      if (matchIndex > lastIndex) {
+        fragments.push({ type: 'text', content: pastedText.slice(lastIndex, matchIndex) });
+      }
+      
+      // Add mention (as chip or text depending on if file exists)
+      const dataset = allDatasets.find(d => d.file?.name === filename);
+      if (dataset) {
+        fragments.push({ type: 'mention', content: filename, dataset });
+        if (!mentionedDatasets.some(d => d.file?.name === filename)) {
+          onAddDataset?.(dataset);
+          setMentionedDatasets(prev => [...prev, dataset]);
+        }
+      } else {
+        fragments.push({ type: 'text', content: match[0] });
+      }
+      
+      lastIndex = matchIndex + match[0].length;
+    }
+    
+    // Add remaining text
+    if (lastIndex < pastedText.length) {
+      fragments.push({ type: 'text', content: pastedText.slice(lastIndex) });
+    }
+    
+    // If no mentions found, just paste normally
+    if (fragments.length === 0) {
+      fragments.push({ type: 'text', content: pastedText });
+    }
+    
+    // Insert fragments at cursor position
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      
+      for (const fragment of fragments) {
+        if (fragment.type === 'text') {
+          range.insertNode(document.createTextNode(fragment.content));
+          range.collapse(false);
+        } else {
+          // Create inline chip
+          const chip = document.createElement('span');
+          chip.className = 'inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 bg-primary/15 text-primary text-sm rounded border border-primary/25 align-middle';
+          chip.contentEditable = 'false';
+          chip.dataset.mention = fragment.content;
+          chip.innerHTML = `<span class="font-medium">@${fragment.content}</span>`;
+          range.insertNode(chip);
+          range.collapse(false);
+          range.insertNode(document.createTextNode(' '));
+          range.collapse(false);
+        }
+      }
+    }
+    
+    // Trigger input event to update state
+    const event = new Event('input', { bubbles: true });
+    textInputRef.current.dispatchEvent(event);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -398,7 +490,7 @@ const ChatArea = ({
               What can I help with?
             </h1>
             
-            <div className="w-full">
+            <div className="w-full relative">
             {uploadedData.length > 0 && (
               <div className="flex gap-2 mb-4">
                 {uploadedData.map((dataset, index) => (
@@ -430,7 +522,30 @@ const ChatArea = ({
                   ))}
                 </div>
               )}
-              <div className="flex items-center gap-3 bg-background rounded-3xl border px-6 py-3 shadow-sm">
+              
+              {showMentionDropdown && filteredMentionDatasets.length > 0 && (
+                <div className="absolute top-full left-0 mt-2 w-64 bg-card border border-border rounded-lg shadow-lg overflow-hidden z-[100]">
+                  <div className="p-2 text-xs text-muted-foreground border-b border-border">
+                    Add dataset
+                  </div>
+                  <div className="max-h-48 overflow-y-auto">
+                    {filteredMentionDatasets.map((dataset, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleMentionSelect(dataset)}
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
+                          index === selectedMentionIndex ? 'bg-accent' : 'hover:bg-accent'
+                        }`}
+                      >
+                        <HiOutlineDatabase className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate">{dataset.file?.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex items-center gap-3 bg-background rounded-3xl border px-6 py-3 shadow-sm overflow-visible">
                 <input
                   type="file"
                   ref={imageInputRef}
@@ -455,6 +570,7 @@ const ChatArea = ({
                     data-placeholder={isLoading || isTypingResponse ? "AI is thinking..." : "Ask a question about your data"}
                     onInput={handleContentInput}
                     onKeyDown={handleKeyPress}
+                    onPaste={handlePaste}
                     suppressContentEditableWarning
                   />
                 </div>
@@ -492,7 +608,7 @@ const ChatArea = ({
           </button>
 
           <div className="px-8 pb-8">
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-4xl mx-auto relative">
               {uploadedData.length > 0 && (
                 <div className="flex gap-2 mb-3">
                   {uploadedData.map((dataset, index) => (
@@ -524,7 +640,30 @@ const ChatArea = ({
                   ))}
                 </div>
               )}
-              <div className="flex items-center gap-3 bg-background rounded-3xl border px-6 py-3 shadow-sm">
+              
+              {showMentionDropdown && filteredMentionDatasets.length > 0 && (
+                <div className="absolute bottom-16 left-8 w-64 bg-card border border-border rounded-lg shadow-lg overflow-hidden z-[100]">
+                  <div className="p-2 text-xs text-muted-foreground border-b border-border">
+                    Add dataset
+                  </div>
+                  <div className="max-h-48 overflow-y-auto">
+                    {filteredMentionDatasets.map((dataset, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleMentionSelect(dataset)}
+                        className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
+                          index === selectedMentionIndex ? 'bg-accent' : 'hover:bg-accent'
+                        }`}
+                      >
+                        <HiOutlineDatabase className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate">{dataset.file?.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex items-center gap-3 bg-background rounded-3xl border px-6 py-3 shadow-sm overflow-visible">
                 <input
                   type="file"
                   ref={imageInputRef}
@@ -549,29 +688,9 @@ const ChatArea = ({
                     data-placeholder={isLoading || isTypingResponse || isRestoringConversation || areDatasetsLoading ? "AI is thinking..." : "Ask a question about your data"}
                     onInput={handleContentInput}
                     onKeyDown={handleKeyPress}
+                    onPaste={handlePaste}
                     suppressContentEditableWarning
                   />
-                  {showMentionDropdown && filteredMentionDatasets.length > 0 && (
-                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-card border border-border rounded-lg shadow-lg overflow-hidden z-50">
-                      <div className="p-2 text-xs text-muted-foreground border-b border-border">
-                        Add dataset
-                      </div>
-                      <div className="max-h-48 overflow-y-auto">
-                        {filteredMentionDatasets.map((dataset, index) => (
-                          <button
-                            key={index}
-                            onClick={() => handleMentionSelect(dataset)}
-                            className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
-                              index === selectedMentionIndex ? 'bg-accent' : 'hover:bg-accent'
-                            }`}
-                          >
-                            <HiOutlineDatabase className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                            <span className="truncate">{dataset.file?.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
                 {(isLoading || isTypingResponse) ? (
                   <button

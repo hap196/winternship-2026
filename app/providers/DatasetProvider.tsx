@@ -41,7 +41,6 @@ export function DatasetProvider({ children }: { children: ReactNode }) {
           columns: [],
         }));
         
-        console.log('Loaded datasets from server:', parsedDatasets);
         setAllDatasets(parsedDatasets);
       } catch (error) {
         console.error('Error loading datasets:', error);
@@ -54,7 +53,6 @@ export function DatasetProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addDatasets = async (datasets: ParsedDataset[], originalFiles?: File[]) => {
-    console.log('Adding datasets to provider:', datasets);
     setAllDatasets(prev => [...prev, ...datasets]);
   };
 

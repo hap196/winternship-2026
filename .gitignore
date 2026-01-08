@@ -1,18 +1,36 @@
-venv
-eoe_program_activity.h5ad
-programs_with_loadings.json
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Environment
 .env*
-node_modules/
-.next/
 .env
 .env.local
 .env.production.local
 .env.development.local
-data/
-*.log
-.DS_Store
+
+# Node
+node_modules/
+.next/
 dist/
 build/
 .turbo
 .vercel
+
+# Data files
+eoe_program_activity.h5ad
+programs_with_loadings.json
+data/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# Temp
 data/temp/

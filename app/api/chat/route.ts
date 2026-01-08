@@ -1,105 +1,16 @@
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
 import { DEFAULT_MODEL, isValidModel } from "../../constants/models";
 
-const CHART_PROMPT = `
-CHART GENERATION:
-When the user asks for a chart, graph, visualization, or plot, you MUST output a special JSON block.
-Use this exact format (the markers are required):
-
-\`\`\`chart
-{
-  "type": "bar" | "line" | "pie" | "area" | "composed",
-  "title": "Chart Title",
-  "data": [
-    { "label": "Category A", "value": 100, "count": 5 },
-    { "label": "Category B", "value": 200, "count": 10 }
-  ],
-  "xAxisKey": "label",
-  "yAxisLabel": "Primary Axis Label",
-  "secondaryYAxisLabel": "Secondary Axis Label",
-  "series": [
-    { "name": "Revenue", "dataKey": "value", "type": "bar", "color": "#3b82f6", "yAxisId": "left" },
-    { "name": "Count", "dataKey": "count", "type": "line", "color": "#ef4444", "yAxisId": "right" }
-  ],
-  "showLegend": true,
-  "showGrid": true
-}
-\`\`\`
-`;
-
-const createSystemPrompt = (csvData: string): string => {
-  return `
-You are a computational biology assistant specializing in single-cell genomics and gene program analysis.
-
-${csvData ? `The user has uploaded the following data:\n\n${csvData}\n\n` : ''}
-
-**Data Types You Work With:**
-- Program activity files (h5ad format with cells × programs)
-- Gene program loadings (gene membership in programs)
-- Cell-level metadata (disease_status, sex, cell_type, etc.)
-
-**Your Role:**
-You help users understand and explore their single-cell genomics data by:
-1. Interpreting analysis results and explaining biological significance
-2. Guiding users through appropriate analyses for their questions
-3. Visualizing results in clear, publication-ready formats
-4. Providing biological context and insights
-
-**Available Analysis Tools (via MCP):**
-When users ask questions, you have access to specialized tools for:
-- Program summarization and naming
-- Cell-type specificity classification
-- Enrichment analysis (disease status, sex, cell type)
-- Gene lookup in programs
-- Program similarity analysis (Jaccard similarity, correlation)
-- Statistical testing (Wilcoxon rank-sum, etc.)
-
-**Communication Style:**
-- Use precise biological terminology when appropriate
-- Explain statistical results clearly (p-values, effect sizes, significance)
-- Present results in markdown tables and organized formats
-- Reference genes, programs, and conditions clearly
-- Suggest appropriate analyses based on user questions
-
-${CHART_PROMPT}
-
-**Common Visualizations:**
-- Box-and-whisker plots for program activity comparisons (mark significance with *)
-- Histograms for gene overlap distributions
-- Heatmaps for program-program correlations
-- All plots should be properly labeled with clear axes and legends
-
-Note: Program activities are often scaled by program size and may need normalization for certain analyses.
-`;
-};
+const FLASK_BACKEND_URL = process.env.FLASK_BACKEND_URL || 'http://localhost:5001';
 
 export async function POST(req: Request) {
   try {
-    const { userMessage, datasetInfo, conversationHistory, model, images } =
-      await req.json();
-
-    console.log('Chat API Request:', {
-      userMessageLength: userMessage?.length,
-      datasetInfoSize: datasetInfo?.length,
-      conversationLength: conversationHistory?.length,
-      model
-    });
+    const { userMessage, datasetInfo, conversationHistory, model } = await req.json();
 
     const selectedModel = model && isValidModel(model) ? model : DEFAULT_MODEL;
 
-    if (!process.env.OPENAI_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "OpenAI API key not configured on server" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
     if (!userMessage) {
       return new Response(
-        JSON.stringify({
-          error: "Missing required field: userMessage",
-        }),
+        JSON.stringify({ error: "Missing required field: userMessage" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -107,66 +18,104 @@ export async function POST(req: Request) {
     interface HistoryMessage {
       role: "user" | "assistant";
       content: string;
-      images?: string[];
     }
 
+    // Build messages array in OpenAI format
     const messages = [
       {
         role: "system" as const,
-        content: createSystemPrompt(datasetInfo || ''),
+        content: `You are a computational biology assistant specializing in single-cell genomics and gene program analysis.
+
+${datasetInfo ? `The user has uploaded the following data:\n\n${datasetInfo}\n\n` : ''}
+
+**CRITICAL - Dataset ID Mapping:**
+Users refer to files by name (e.g., "eoe_program_activity.h5ad"), but your tools need dataset IDs (e.g., "ds_1767761666236_y4v1qm1bx").
+- ALWAYS call get_dataset_id_by_name(filename) FIRST to get the ID
+- H5AD files: program ACTIVITY (columns like new_program_5_activity_scaled)
+- JSON files: program GENE LOADINGS (program index "5" maps to "new_program_5_activity_scaled")
+
+**File Usage Rules:**
+
+1. **Check if user mentioned files with @:**
+   - Scan current message and conversation history for @filename patterns
+   - Extract filenames and call get_dataset_id_by_name() to get IDs
+   
+2. **Tool → File mapping (only use what's needed):**
+   - jaccard_topk(json_id, ...) → Needs JSON file only
+   - gene_to_programs(json_id, ...) → Needs JSON file only
+   - wilcoxon_rank_programs(h5ad_id, ...) → Needs H5AD file only
+   - correlation_matrix(h5ad_id, ...) → Needs H5AD file only
+
+3. **When to ask for files:**
+   - User asks about gene overlap/similarity → Use jaccard_topk with JSON only
+   - User asks which programs contain gene → Use gene_to_programs with JSON only
+   - User asks about enrichment/differential → Use wilcoxon_rank_programs with H5AD only
+   - User asks about correlation → Use correlation_matrix with H5AD only
+   - Don't ask for files you don't need for that specific analysis
+   
+**If user says "@programs_with_loadings.json" for gene overlap, that's sufficient - proceed immediately.**
+
+**Column Names - Use Exact Values:**
+- Call get_h5ad_schema(dataset_id) to see EXACT metadata column names and values
+- Use the exact column names returned (e.g., "disease_status" not "Disease Status")
+- Use exact group values (e.g., "Active", "Ctrl", "Remission")
+
+**Workflow:**
+1. User mentions a filename → call get_dataset_id_by_name() to convert to ID
+2. User asks about gene loadings → ASK which H5AD and JSON files to use (don't guess!)
+3. User asks about enrichment → call get_h5ad_schema() first to get exact column names/values
+4. Always use EXACT column names and values from schema tools
+
+Be concise and always use tools before answering data questions.`,
       },
-      ...(conversationHistory || []).map((msg: HistoryMessage) => {
-        if (msg.images && msg.images.length > 0) {
-          return {
-            role: msg.role as "user" | "assistant",
-            content: [
-              { type: "text", text: msg.content },
-              ...msg.images.map((image: string) => ({
-                type: "image",
-                image: image,
-              })),
-            ],
-          };
-        }
-        return {
-          role: msg.role as "user" | "assistant",
-          content: msg.content,
-        };
-      }),
-      images && images.length > 0
-        ? {
-            role: "user" as const,
-            content: [
-              { type: "text", text: userMessage },
-              ...images.map((image: string) => ({
-                type: "image",
-                image: image,
-              })),
-            ],
-          }
-        : {
-            role: "user" as const,
-            content: userMessage,
-          },
+      ...(conversationHistory || []).map((msg: HistoryMessage) => ({
+        role: msg.role,
+        content: msg.content,
+      })),
+      {
+        role: "user" as const,
+        content: userMessage,
+      },
     ];
 
-    const result = await streamText({
-      model: openai(selectedModel),
-      messages,
-      temperature: 0.3,
+    // Call Flask backend
+    const response = await fetch(`${FLASK_BACKEND_URL}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ messages }),
     });
 
-    return result.toTextStreamResponse();
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Backend error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Return the assistant's response as a text stream
+    // The Vercel AI SDK expects a streaming response, so we'll create one
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(data.assistant || ''));
+        controller.close();
+      }
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+      },
+    });
   } catch (error: unknown) {
     const err = error as Error;
     console.error("Chat API error:", error);
 
     return new Response(
-      JSON.stringify({
-        error: err.message || "Failed to get response from AI",
-      }),
+      JSON.stringify({ error: err.message || "Failed to get response from AI" }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }
-
