@@ -1,3 +1,4 @@
 venv
 eoe_program_activity.h5ad
 programs_with_loadings.json
+.env*

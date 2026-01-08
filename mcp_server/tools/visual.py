@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import plotly.express as px
 
-def register_viz_tools(mcp):
+def register_visual_tools(mcp):
 
     @mcp.tool()
     def boxplot(groups: dict[str, list[float]], title: str = "Program activity", show_points: bool = True) -> dict:
