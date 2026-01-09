@@ -143,9 +143,9 @@ def register_stats_tools(mcp):
         corr = np.corrcoef(X)
         return {"programs": program_names, "corr": corr.tolist()}
 
-    @mcp.tool()
-    def wilcoxon_rank_programs(
-        h5ad_id: str,
+    def _one_vs_rest_enrichment(
+        adata,
+        program_cols: List[str],
         group_col: str,
         program_info: Optional[Dict[str, Dict[str, Any]]] = None,
         alternative: Literal["two-sided", "greater", "less"] = "greater",
@@ -156,25 +156,9 @@ def register_stats_tools(mcp):
         top_k_groups: int = 5,
         min_cells_per_group: int = 3,
     ) -> dict:
-        """
-        For each program, test enrichment of program activity in each group value (one-vs-rest)
-        using Mann–Whitney U (Wilcoxon rank-sum).
-
-        group_col can be "cell_type", "disease_status", etc.
-        Returns programs ranked by best (smallest) p-value among enriched groups.
-        Each program includes enriched groups sorted by p-value.
-        Adds ★ via group_value_label when q_value < alpha.
-        """
-        adata = _load_h5ad(h5ad_id)
-        if adata is None:
-            return {"error": f"Dataset {h5ad_id} not found"}
-
+        """Generic one-vs-rest enrichment over any group_col."""
         if group_col not in adata.obs.columns:
             return {"error": f"Column {group_col} not found"}
-
-        program_cols = [c for c in adata.obs.columns if c.startswith("new_program_")]
-        if not program_cols:
-            return {"error": "No program columns found (expected obs columns starting with 'new_program_')"}
 
         groups = adata.obs[group_col].astype(str)
         group_values = sorted(groups.unique().tolist())
@@ -214,7 +198,6 @@ def register_stats_tools(mcp):
                     "group_value": str(gv),
                     "group_value_label": str(gv),  # filled after FDR
 
-                    # stats (kept in payload but prompt/UI will hide them)
                     "u_stat": float(stat),
                     "p_value": float(p),
                     "q_value": 1.0,
@@ -235,7 +218,7 @@ def register_stats_tools(mcp):
                 "tests": per_rows,
             })
 
-        # Multiple testing correction
+        # FDR correction
         if fdr_scope == "global":
             pvals = [r["p_value"] for r in all_test_rows]
             _, qvals, _, _ = multipletests(pvals, method=fdr_method)
@@ -252,7 +235,7 @@ def register_stats_tools(mcp):
                     r["significant"] = bool(r["q_value"] < alpha)
                     r["group_value_label"] = f'{r["group_value"]}{"★" if r["significant"] else ""}'
 
-        # Enrichment direction filter
+        # direction filter
         def is_enriched(r: dict) -> bool:
             if np.isnan(r["median_diff"]):
                 return False
@@ -265,7 +248,7 @@ def register_stats_tools(mcp):
         results = []
         for prog in programs:
             enriched = [r for r in prog["tests"] if is_enriched(r)]
-            enriched.sort(key=lambda r: r["p_value"])  # required sort by p-value
+            enriched.sort(key=lambda r: r["p_value"])
 
             best_p = enriched[0]["p_value"] if enriched else 1.0
             best_q = enriched[0]["q_value"] if enriched else 1.0
@@ -280,9 +263,8 @@ def register_stats_tools(mcp):
                 "enriched_in": [
                     {
                         "group_value": r["group_value"],
-                        "group_value_label": r["group_value_label"],
+                        "group_value_label": r["group_value_label"],  # includes ★
                         "significant": r["significant"],
-                        # keep stats in payload for debugging / future UI
                         "p_value": r["p_value"],
                         "q_value": r["q_value"],
                         "median_diff": r["median_diff"],
@@ -302,4 +284,156 @@ def register_stats_tools(mcp):
             "fdr_method": fdr_method,
             "fdr_scope": fdr_scope,
             "results": results[:top_k_programs],
+        }
+
+
+    @mcp.tool()
+    def program_celltype_enrichment(
+        h5ad_id: str,
+        cell_type_col: str = "cell_type",
+        program_info: Optional[Dict[str, Dict[str, Any]]] = None,
+        alternative: Literal["two-sided", "greater", "less"] = "greater",
+        alpha: float = 0.05,
+        fdr_method: Literal["fdr_bh"] = "fdr_bh",
+        fdr_scope: Literal["global", "per_program"] = "global",
+        top_k_programs: int = 30,
+        top_k_celltypes: int = 5,
+        min_cells_per_group: int = 3,
+    ) -> dict:
+        """
+        Cell-type enrichment: for each program, test each cell type vs all other cell types (one-vs-rest).
+        This is the tool you want for: "Cell types the program is enriched in (vs all other cell types)".
+        """
+        adata = _load_h5ad(h5ad_id)
+        if adata is None:
+            return {"error": f"Dataset {h5ad_id} not found"}
+
+        program_cols = [c for c in adata.obs.columns if c.startswith("new_program_")]
+        if not program_cols:
+            return {"error": "No program columns found (expected obs columns starting with 'new_program_')"}
+
+        return _one_vs_rest_enrichment(
+            adata=adata,
+            program_cols=program_cols,
+            group_col=cell_type_col,
+            program_info=program_info,
+            alternative=alternative,
+            alpha=alpha,
+            fdr_method=fdr_method,
+            fdr_scope=fdr_scope,
+            top_k_programs=top_k_programs,
+            top_k_groups=top_k_celltypes,
+            min_cells_per_group=min_cells_per_group,
+        )
+
+
+    @mcp.tool()
+    def program_pairwise_enrichment(
+        h5ad_id: str,
+        group_col: str,
+        group_a: str,
+        group_b: str,
+        program_info: Optional[Dict[str, Dict[str, Any]]] = None,
+        alternative: Literal["two-sided", "greater", "less"] = "greater",
+        alpha: float = 0.05,
+        fdr_method: Literal["fdr_bh"] = "fdr_bh",
+        top_k_programs: int = 30,
+        min_cells_per_group: int = 3,
+    ) -> dict:
+        """
+        Pairwise enrichment: compare group_a vs group_b for each program (e.g., Active vs Ctrl).
+        This is the tool you want for: "enriched in Active compared to Ctrl".
+        """
+        adata = _load_h5ad(h5ad_id)
+        if adata is None:
+            return {"error": f"Dataset {h5ad_id} not found"}
+
+        if group_col not in adata.obs.columns:
+            return {"error": f"Column {group_col} not found"}
+
+        program_cols = [c for c in adata.obs.columns if c.startswith("new_program_")]
+        if not program_cols:
+            return {"error": "No program columns found (expected obs columns starting with 'new_program_')"}
+
+        groups = adata.obs[group_col].astype(str)
+        mask_a = (groups == str(group_a)).values
+        mask_b = (groups == str(group_b)).values
+
+        if mask_a.sum() < min_cells_per_group or mask_b.sum() < min_cells_per_group:
+            return {
+                "error": f"Not enough cells in one or both groups (need >= {min_cells_per_group}).",
+                "n_a": int(mask_a.sum()),
+                "n_b": int(mask_b.sum()),
+            }
+
+        rows = []
+        pvals = []
+
+        for pcol in program_cols:
+            prog_num = _parse_program_number(pcol)
+
+            name = ""
+            description = ""
+            if program_info and prog_num in program_info:
+                name = str(program_info[prog_num].get("name", ""))
+                description = str(program_info[prog_num].get("description", ""))
+
+            x_all = np.asarray(adata.obs[pcol].values, dtype=float)
+            a = x_all[mask_a]
+            b = x_all[mask_b]
+
+            if a.size < min_cells_per_group or b.size < min_cells_per_group:
+                stat, p = 0.0, 1.0
+                med_diff = float("nan")
+            else:
+                stat, p = mannwhitneyu(a, b, alternative=alternative)
+                med_diff = float(np.nanmedian(a) - np.nanmedian(b))
+
+            # "Higher group" label is useful for UI while hiding p/q
+            if np.isnan(med_diff):
+                higher = ""
+            else:
+                higher = str(group_a) if med_diff > 0 else str(group_b)
+
+            row = {
+                "program_number": prog_num,
+                "program_column": pcol,
+                "name": name,
+                "description": description,
+
+                "u_stat": float(stat),
+                "p_value": float(p),
+                "q_value": 1.0,
+                "significant": False,
+
+                "median_diff": med_diff,
+                "n_a": int(a.size),
+                "n_b": int(b.size),
+
+                "higher_group": higher,
+                "higher_group_label": higher,  # add ★ after FDR
+            }
+
+            rows.append(row)
+            pvals.append(p)
+
+        # FDR across programs
+        _, qvals, _, _ = multipletests(pvals, method=fdr_method)
+        for r, q in zip(rows, qvals):
+            r["q_value"] = float(q)
+            r["significant"] = bool(r["q_value"] < alpha)
+            if r["higher_group_label"]:
+                r["higher_group_label"] = f'{r["higher_group_label"]}{"★" if r["significant"] else ""}'
+
+        # sort by q then p (stable)
+        rows.sort(key=lambda r: (r["q_value"], r["p_value"]))
+
+        return {
+            "group_col": group_col,
+            "group_a": group_a,
+            "group_b": group_b,
+            "alternative": alternative,
+            "alpha": alpha,
+            "fdr_method": fdr_method,
+            "results": rows[:top_k_programs],
         }

@@ -27,7 +27,8 @@ Users refer to files by name (e.g., "eoe_program_activity.h5ad"), but your tools
    - jaccard_topk(json_id, ...) → Needs JSON file only
    - gene_to_programs(json_id, ...) → Needs JSON file only
    - program_top_genes(json_id, program, ...) → Needs JSON file only
-   - wilcoxon_rank_programs(h5ad_id, group_col, ...) → Needs H5AD file only
+   - program_celltype_enrichment(h5ad_id, ...) → Needs H5AD file only
+   - program_pairwise_enrichment(h5ad_id, ...) → Needs H5AD file only
    - correlation_matrix(h5ad_id, ...) → Needs H5AD file only
 
 3. **When to ask for files:**
@@ -57,15 +58,30 @@ When user asks for a boxplot:
 3. User asks about enrichment → call get_h5ad_schema() first to get exact column names/values
 4. Always use EXACT column names and values from schema tools
 
-When returning enrichment results from wilcoxon_rank_programs, ALWAYS output a Markdown table (not a list).
-Table columns MUST be:
-| Program # | Name | Description | Enriched groups |
 
+When returning results from program_celltype_enrichment, ALWAYS output a Markdown table:
+| Program # | Name | Description | Enriched cell types |
 Rules:
-- Program # must be results[i].program_number (numeric only; not "new_program_...").
-- Name and Description may be empty strings.
-- "Enriched groups" must be a comma-separated list of results[i].enriched_in[j].group_value_label (this includes ★ when significant).
-- Keep groups in the order returned by the tool (already sorted by p_value ascending).
-- Do NOT include U-stat, p-value, or q-value in the table.
+- Program # = results[i].program_number (numeric only)
+- Enriched cell types = comma-separated results[i].enriched_in[j].group_value_label (★ included)
+- Do NOT show U-stat, p-value, or q-value.
 
-Be concise and always use tools before answering data questions."""
+When returning results from program_pairwise_enrichment, ALWAYS output a Markdown table:
+| Program # | Name | Description | Higher in |
+Rules:
+- Program # = results[i].program_number (numeric only)
+- Higher in = results[i].higher_group_label (★ included)
+- Do NOT show U-stat, p-value, or q-value.
+
+**When to use which enrichment tool:**
+   - If user asks: "Which cell types is this program enriched in?" OR "cell-type enrichment"
+     → call program_celltype_enrichment(h5ad_id, cell_type_col=<cell type column>)
+   - If user asks: "Which programs are enriched in Active vs Ctrl?" OR "disease enrichment"
+     → call program_pairwise_enrichment(h5ad_id, group_col=<disease column>, group_a="Active", group_b="Ctrl")
+
+IMPORTANT:
+- program_celltype_enrichment is ONE-vs-REST (cell type vs all other cell types combined).
+- program_pairwise_enrichment is PAIRWISE (Active vs Ctrl only).
+- Do NOT label disease_status results as "cell types".
+
+Be concise so you don't exceed token limit. Always use tools before answering data questions."""
