@@ -1,15 +1,20 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { HiArrowRight, HiPhotograph, HiX, HiStop, HiOutlineDatabase, HiArrowDown } from 'react-icons/hi';
-import ChatMessages from './ChatMessages';
-import ChatHeader from './ChatHeader';
-import FileChip from './FileChip';
-import ChatDragOverlay from './ChatDragOverlay';
-import ChatEmptyState from './ChatEmptyState';
-import { ParsedDataset, Message } from '../../types';
-import { useChatContext } from '../../providers/ChatProvider';
-import { useLanguage } from '../../providers/LanguageProvider';
+import { useState, useRef, useEffect, useMemo } from "react";
+import {
+  HiArrowRight,
+  HiPhotograph,
+  HiX,
+  HiStop,
+  HiOutlineDatabase,
+  HiArrowDown,
+} from "react-icons/hi";
+import ChatMessages from "./ChatMessages";
+import ChatHeader from "./ChatHeader";
+import FileChip from "./FileChip";
+import ChatDragOverlay from "./ChatDragOverlay";
+import { ParsedDataset, Message } from "../../types";
+import { useChatContext } from "../../providers/ChatProvider";
 
 interface ChatAreaProps {
   uploadedData: ParsedDataset[];
@@ -29,16 +34,16 @@ interface ChatAreaProps {
   areDatasetsLoading?: boolean;
 }
 
-const ChatArea = ({ 
-  uploadedData, 
+const ChatArea = ({
+  uploadedData,
   allDatasets = [],
-  onFileUpload, 
+  onFileUpload,
   onSendMessage,
-  messages = [], 
+  messages = [],
   onRemoveDataset,
   onAddDataset,
   isDatasetActive,
-  isLoading = false, 
+  isLoading = false,
   isTypingResponse = false,
   hasMoreMessages = false,
   onLoadMore,
@@ -46,14 +51,16 @@ const ChatArea = ({
   isRestoringConversation = false,
   areDatasetsLoading = false,
 }: ChatAreaProps) => {
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionQuery, setMentionQuery] = useState("");
   const [mentionIndex, setMentionIndex] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
-  const [mentionedDatasets, setMentionedDatasets] = useState<ParsedDataset[]>([]);
+  const [mentionedDatasets, setMentionedDatasets] = useState<ParsedDataset[]>(
+    []
+  );
   const [showScrollButton, setShowScrollButton] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -62,77 +69,95 @@ const ChatArea = ({
   const dragCounter = useRef(0);
   const previousUploadedDataRef = useRef<ParsedDataset[]>([]);
   const { stopGeneration } = useChatContext();
-  const { t } = useLanguage();
 
-  const inactiveDatasets = useMemo(() => 
-    allDatasets.filter(d => !isDatasetActive?.(d)),
-    [allDatasets, isDatasetActive]
-  );
+  const SCROLL_THRESHOLD = 100;
 
-  const filteredMentionDatasets = useMemo(() => 
-    allDatasets.filter(d => 
-      d.file?.name?.toLowerCase().includes(mentionQuery.toLowerCase())
-    ),
+  const filteredMentionDatasets = useMemo(
+    () =>
+      allDatasets.filter((d) =>
+        d.file?.name?.toLowerCase().includes(mentionQuery.toLowerCase())
+      ),
     [allDatasets, mentionQuery]
   );
 
-  const firstName = 'there';
+  const hasBothRequiredFiles = useMemo(() => {
+    const hasH5ad = uploadedData.some((d) => d.file.name.endsWith(".h5ad"));
+    const hasJson = uploadedData.some((d) => d.file.name.endsWith(".json"));
+    return hasH5ad && hasJson;
+  }, [uploadedData]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   useEffect(() => {
-    if (!isLoading && !isTypingResponse && !isRestoringConversation && !areDatasetsLoading && messages.length === 0) {
+    if (
+      !isLoading &&
+      !isTypingResponse &&
+      !isRestoringConversation &&
+      !areDatasetsLoading &&
+      messages.length === 0
+    ) {
       textInputRef.current?.focus();
     }
-  }, [isLoading, isTypingResponse, isRestoringConversation, areDatasetsLoading, messages.length]);
+  }, [
+    isLoading,
+    isTypingResponse,
+    isRestoringConversation,
+    areDatasetsLoading,
+    messages.length,
+  ]);
 
   useEffect(() => {
     if (!textInputRef.current) return;
-    
+
     const previousDatasets = previousUploadedDataRef.current;
     const newDatasets = uploadedData.filter(
-      dataset => !previousDatasets.some(prev => prev.file?.name === dataset.file?.name)
+      (dataset) =>
+        !previousDatasets.some((prev) => prev.file?.name === dataset.file?.name)
     );
-    
+
     if (newDatasets.length === 0) {
       previousUploadedDataRef.current = uploadedData;
       return;
     }
-    
+
     const existingMentions = new Set<string>();
-    textInputRef.current.querySelectorAll('[data-mention]').forEach(el => {
+    textInputRef.current.querySelectorAll("[data-mention]").forEach((el) => {
       const mention = (el as HTMLElement).dataset.mention;
       if (mention) existingMentions.add(mention);
     });
-    
+
     for (const dataset of newDatasets) {
-      if (existingMentions.has(dataset.file?.name || '')) {
+      if (existingMentions.has(dataset.file?.name || "")) {
         continue;
       }
-      
-      const chip = document.createElement('span');
-      chip.className = 'inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 bg-primary/15 text-primary text-sm rounded border border-primary/25 align-middle';
-      chip.contentEditable = 'false';
-      chip.dataset.mention = dataset.file?.name || '';
+
+      const chip = document.createElement("span");
+      chip.className =
+        "inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 bg-primary/15 text-primary text-sm rounded border border-primary/25 align-middle";
+      chip.contentEditable = "false";
+      chip.dataset.mention = dataset.file?.name || "";
       chip.innerHTML = `<span class="font-medium">@${dataset.file?.name}</span>`;
-      
-      if (textInputRef.current.childNodes.length === 0 || textInputRef.current.innerHTML === '') {
+
+      if (
+        textInputRef.current.childNodes.length === 0 ||
+        textInputRef.current.innerHTML === ""
+      ) {
         textInputRef.current.appendChild(chip);
-        textInputRef.current.appendChild(document.createTextNode(' '));
+        textInputRef.current.appendChild(document.createTextNode(" "));
       } else {
-        textInputRef.current.appendChild(document.createTextNode(' '));
+        textInputRef.current.appendChild(document.createTextNode(" "));
         textInputRef.current.appendChild(chip);
-        textInputRef.current.appendChild(document.createTextNode(' '));
+        textInputRef.current.appendChild(document.createTextNode(" "));
       }
     }
-    
-    setMentionedDatasets(prev => [...prev, ...newDatasets]);
+
+    setMentionedDatasets((prev) => [...prev, ...newDatasets]);
     previousUploadedDataRef.current = uploadedData;
-    
-    let text = '';
-    textInputRef.current.childNodes.forEach(node => {
+
+    let text = "";
+    textInputRef.current.childNodes.forEach((node) => {
       if (node.nodeType === Node.TEXT_NODE) {
         text += node.textContent;
       } else if (node.nodeType === Node.ELEMENT_NODE) {
@@ -145,7 +170,7 @@ const ChatArea = ({
       }
     });
     setInputValue(text);
-    
+
     textInputRef.current.focus();
     const range = document.createRange();
     const sel = window.getSelection();
@@ -158,35 +183,36 @@ const ChatArea = ({
   const handleScroll = () => {
     const container = scrollContainerRef.current;
     if (!container) return;
-    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    setShowScrollButton(distanceFromBottom > 100);
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    setShowScrollButton(distanceFromBottom > SCROLL_THRESHOLD);
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
-    Array.from(files).forEach(file => {
-      if (file.type.startsWith('image/')) {
+    Array.from(files).forEach((file) => {
+      if (file.type.startsWith("image/")) {
         const reader = new FileReader();
         reader.onloadend = () => {
-          setUploadedImages(prev => [...prev, reader.result as string]);
+          setUploadedImages((prev) => [...prev, reader.result as string]);
         };
         reader.readAsDataURL(file);
       }
     });
 
     if (imageInputRef.current) {
-      imageInputRef.current.value = '';
+      imageInputRef.current.value = "";
     }
   };
 
   const removeImage = (index: number) => {
-    setUploadedImages(prev => prev.filter((_, i) => i !== index));
+    setUploadedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleRemoveDatasetChip = (index: number) => {
@@ -195,47 +221,48 @@ const ChatArea = ({
       onRemoveDataset(index);
       return;
     }
-    
-    const mentionChips = textInputRef.current.querySelectorAll('[data-mention]');
-    mentionChips.forEach(chip => {
+
+    const mentionChips =
+      textInputRef.current.querySelectorAll("[data-mention]");
+    mentionChips.forEach((chip) => {
       if ((chip as HTMLElement).dataset.mention === dataset.file.name) {
         chip.remove();
       }
     });
-    
+
     const text = getTextContent();
     setInputValue(text);
-    
+
     onRemoveDataset(index);
   };
 
   const handleSend = () => {
     const text = getTextContent();
     const isNewChat = messages.length === 0;
-    const hasH5ad = uploadedData.some(d => d.file.name.endsWith('.h5ad'));
-    const hasJson = uploadedData.some(d => d.file.name.endsWith('.json'));
-    const hasBothFileTypes = hasH5ad && hasJson;
-    
-    if (isNewChat && !hasBothFileTypes) {
+
+    if (isNewChat && !hasBothRequiredFiles) {
       return;
     }
-    
+
     if (text.trim() || uploadedImages.length > 0) {
-      onSendMessage(text, uploadedImages.length > 0 ? uploadedImages : undefined);
-      setInputValue('');
+      onSendMessage(
+        text,
+        uploadedImages.length > 0 ? uploadedImages : undefined
+      );
+      setInputValue("");
       setUploadedImages([]);
       setMentionedDatasets([]);
       if (textInputRef.current) {
-        textInputRef.current.innerHTML = '';
+        textInputRef.current.innerHTML = "";
       }
     }
   };
 
   const getTextContent = () => {
-    if (!textInputRef.current) return '';
-    // Get text content, preserving @mentions
-    let text = '';
-    textInputRef.current.childNodes.forEach(node => {
+    if (!textInputRef.current) return "";
+    
+    let text = "";
+    textInputRef.current.childNodes.forEach((node) => {
       if (node.nodeType === Node.TEXT_NODE) {
         text += node.textContent;
       } else if (node.nodeType === Node.ELEMENT_NODE) {
@@ -251,65 +278,86 @@ const ChatArea = ({
   };
 
   const handleContentInput = () => {
+    if (!textInputRef.current) return;
+
     const text = getTextContent();
     setInputValue(text);
-    
+
     if (!text.trim() && textInputRef.current) {
-      textInputRef.current.innerHTML = '';
+      textInputRef.current.innerHTML = "";
     }
 
-    // Check which mentioned datasets are still in the input
-    if (textInputRef.current) {
-      const currentMentions = new Set<string>();
-      textInputRef.current.querySelectorAll('[data-mention]').forEach(el => {
-        const mention = (el as HTMLElement).dataset.mention;
-        if (mention) currentMentions.add(mention);
-      });
-      
-      // Remove datasets that are no longer mentioned
-      mentionedDatasets.forEach(dataset => {
-        if (!currentMentions.has(dataset.file?.name || '')) {
-          // Remove from mentioned datasets
-          setMentionedDatasets(prev => prev.filter(d => d.file?.name !== dataset.file?.name));
-          // Remove from active datasets
-          const activeIndex = uploadedData.findIndex(d => d.file?.name === dataset.file?.name);
-          if (activeIndex !== -1) {
-            onRemoveDataset(activeIndex);
-          }
-        }
-      });
-    }
+    // Check if any mentioned datasets should be removed
+    const currentMentions = new Set<string>();
+    textInputRef.current?.querySelectorAll("[data-mention]").forEach((el) => {
+      const mention = (el as HTMLElement).dataset.mention;
+      if (mention) currentMentions.add(mention);
+    });
 
-    // Check if any mentioned datasets are no longer in the text
-    for (const dataset of mentionedDatasets) {
-      const mentionText = `@${dataset.file?.name}`;
-      if (!text.includes(mentionText)) {
-        // Remove from mentioned datasets
-        setMentionedDatasets(prev => prev.filter(d => d.file?.name !== dataset.file?.name));
-        // Remove from active datasets
-        const activeIndex = uploadedData.findIndex(d => d.file?.name === dataset.file?.name);
+    mentionedDatasets.forEach((dataset) => {
+      const fileName = dataset.file?.name || "";
+      if (!currentMentions.has(fileName)) {
+        setMentionedDatasets((prev) =>
+          prev.filter((d) => d.file?.name !== fileName)
+        );
+        const activeIndex = uploadedData.findIndex(
+          (d) => d.file?.name === fileName
+        );
         if (activeIndex !== -1) {
           onRemoveDataset(activeIndex);
         }
       }
+    });
+
+    const selection = window.getSelection();
+    if (!selection || !textInputRef.current || selection.rangeCount === 0)
+      return;
+
+    const range = selection.getRangeAt(0);
+
+    let node: Node | null = range.startContainer;
+    while (node && node !== textInputRef.current) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as HTMLElement;
+        if (el.dataset && el.dataset.mention) {
+          setShowMentionDropdown(false);
+          return;
+        }
+      }
+      node = node.parentNode;
     }
 
-    // Check for @ mention
-    const selection = window.getSelection();
-    if (!selection || !textInputRef.current) return;
-    
-    const range = selection.getRangeAt(0);
-    const preCaretRange = range.cloneRange();
-    preCaretRange.selectNodeContents(textInputRef.current);
-    preCaretRange.setEnd(range.endContainer, range.endOffset);
-    const cursorPos = preCaretRange.toString().length;
-    
-    const textBeforeCursor = text.slice(0, cursorPos);
-    const atIndex = textBeforeCursor.lastIndexOf('@');
-    
+    let textBeforeCursor = "";
+    const walker = document.createTreeWalker(
+      textInputRef.current,
+      NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+      null
+    );
+
+    let currentNode;
+    let foundCursor = false;
+    while ((currentNode = walker.nextNode()) && !foundCursor) {
+      if (currentNode.nodeType === Node.TEXT_NODE) {
+        if (currentNode === range.startContainer) {
+          textBeforeCursor +=
+            currentNode.textContent?.slice(0, range.startOffset) || "";
+          foundCursor = true;
+        } else {
+          textBeforeCursor += currentNode.textContent || "";
+        }
+      } else if (currentNode.nodeType === Node.ELEMENT_NODE) {
+        const el = currentNode as HTMLElement;
+        if (el.dataset && el.dataset.mention) {
+          textBeforeCursor += `@${el.dataset.mention}`;
+        }
+      }
+    }
+
+    const atIndex = textBeforeCursor.lastIndexOf("@");
+
     if (atIndex !== -1) {
       const textAfterAt = textBeforeCursor.slice(atIndex + 1);
-      if (!textAfterAt.includes(' ') && !mentionedDatasets.some(d => `@${d.file?.name}`.startsWith(`@${textAfterAt}`))) {
+      if (!textAfterAt.includes(" ")) {
         setShowMentionDropdown(true);
         setMentionQuery(textAfterAt);
         setMentionIndex(atIndex);
@@ -322,181 +370,215 @@ const ChatArea = ({
 
   const handleMentionSelect = (dataset: ParsedDataset) => {
     onAddDataset?.(dataset);
-    
-    if (!mentionedDatasets.some(d => d.file?.name === dataset.file?.name)) {
-      setMentionedDatasets(prev => [...prev, dataset]);
+
+    if (!mentionedDatasets.some((d) => d.file?.name === dataset.file?.name)) {
+      setMentionedDatasets((prev) => [...prev, dataset]);
     }
-    
+
     if (!textInputRef.current) return;
+
     
-    // Find and replace the @query with a chip
-    const text = getTextContent();
-    const beforeMention = text.slice(0, mentionIndex);
-    const afterMention = text.slice(mentionIndex + mentionQuery.length + 1);
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+
     
-    // Clear and rebuild content
-    textInputRef.current.innerHTML = '';
-    
-    if (beforeMention) {
-      textInputRef.current.appendChild(document.createTextNode(beforeMention));
+    let textBeforeCursor = "";
+    const walker = document.createTreeWalker(
+      textInputRef.current,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+
+    let currentNode;
+    while ((currentNode = walker.nextNode())) {
+      if (currentNode === range.startContainer) {
+        textBeforeCursor +=
+          currentNode.textContent?.slice(0, range.startOffset) || "";
+        break;
+      } else {
+        textBeforeCursor += currentNode.textContent || "";
+      }
     }
+
+    const atIndex = textBeforeCursor.lastIndexOf("@");
+    if (atIndex === -1) return;
+
     
-    // Create chip element
-    const chip = document.createElement('span');
-    chip.className = 'inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 bg-primary/15 text-primary text-sm rounded border border-primary/25 align-middle';
-    chip.contentEditable = 'false';
-    chip.dataset.mention = dataset.file?.name || '';
-    chip.innerHTML = `<span class="font-medium">@${dataset.file?.name}</span>`;
-    textInputRef.current.appendChild(chip);
+    const deleteRange = document.createRange();
+    const textNode = range.startContainer;
+    if (textNode.nodeType === Node.TEXT_NODE && textNode.textContent) {
+      const localAtIndex = textNode.textContent.lastIndexOf(
+        "@",
+        range.startOffset
+      );
+      if (localAtIndex !== -1) {
+        deleteRange.setStart(textNode, localAtIndex);
+        deleteRange.setEnd(textNode, range.startOffset);
+        deleteRange.deleteContents();
+
+        
+        const chip = document.createElement("span");
+        chip.className =
+          "inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 bg-primary/15 text-primary text-sm rounded border border-primary/25 align-middle";
+        chip.contentEditable = "false";
+        chip.dataset.mention = dataset.file?.name || "";
+        chip.innerHTML = `<span class="font-medium">@${dataset.file?.name}</span>`;
+
+        
+        deleteRange.insertNode(chip);
+        const spaceNode = document.createTextNode(" ");
+        chip.parentNode?.insertBefore(spaceNode, chip.nextSibling);
+
+        
+        const newRange = document.createRange();
+        newRange.setStartAfter(spaceNode);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+      }
+    }
+
     
-    // Add space after chip
-    textInputRef.current.appendChild(document.createTextNode(' ' + afterMention));
-    
-    // Update state
-    setInputValue(beforeMention + `@${dataset.file?.name} ` + afterMention);
+    const text = getTextContent();
+    setInputValue(text);
     setShowMentionDropdown(false);
-    setMentionQuery('');
-    
-    // Move cursor to end
-    const range = document.createRange();
-    const sel = window.getSelection();
-    range.selectNodeContents(textInputRef.current);
-    range.collapse(false);
-    sel?.removeAllRanges();
-    sel?.addRange(range);
+    setMentionQuery("");
     textInputRef.current.focus();
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     e.preventDefault();
-    
-    const pastedText = e.clipboardData.getData('text/plain');
+
+    const pastedText = e.clipboardData.getData("text/plain");
     const mentionPattern = /@([^\s]+\.(h5ad|json))/g;
-    
+
     if (!textInputRef.current) return;
+
     
-    // Parse the text and create fragments
-    const fragments: Array<{ type: 'text' | 'mention'; content: string; dataset?: ParsedDataset }> = [];
+    const fragments: Array<{
+      type: "text" | "mention";
+      content: string;
+      dataset?: ParsedDataset;
+    }> = [];
     let lastIndex = 0;
-    
+
     const matches = [...pastedText.matchAll(mentionPattern)];
-    
+
     for (const match of matches) {
       const filename = match[1];
       const matchIndex = match.index!;
+
       
-      // Add text before the match
       if (matchIndex > lastIndex) {
-        fragments.push({ type: 'text', content: pastedText.slice(lastIndex, matchIndex) });
+        fragments.push({
+          type: "text",
+          content: pastedText.slice(lastIndex, matchIndex),
+        });
       }
+
       
-      // Add mention (as chip or text depending on if file exists)
-      const dataset = allDatasets.find(d => d.file?.name === filename);
+      const dataset = allDatasets.find((d) => d.file?.name === filename);
       if (dataset) {
-        fragments.push({ type: 'mention', content: filename, dataset });
-        if (!mentionedDatasets.some(d => d.file?.name === filename)) {
+        fragments.push({ type: "mention", content: filename, dataset });
+        if (!mentionedDatasets.some((d) => d.file?.name === filename)) {
           onAddDataset?.(dataset);
-          setMentionedDatasets(prev => [...prev, dataset]);
+          setMentionedDatasets((prev) => [...prev, dataset]);
         }
       } else {
-        fragments.push({ type: 'text', content: match[0] });
+        fragments.push({ type: "text", content: match[0] });
       }
-      
+
       lastIndex = matchIndex + match[0].length;
     }
+
     
-    // Add remaining text
     if (lastIndex < pastedText.length) {
-      fragments.push({ type: 'text', content: pastedText.slice(lastIndex) });
+      fragments.push({ type: "text", content: pastedText.slice(lastIndex) });
     }
+
     
-    // If no mentions found, just paste normally
     if (fragments.length === 0) {
-      fragments.push({ type: 'text', content: pastedText });
+      fragments.push({ type: "text", content: pastedText });
     }
+
     
-    // Insert fragments at cursor position
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
       range.deleteContents();
-      
+
       for (const fragment of fragments) {
-        if (fragment.type === 'text') {
+        if (fragment.type === "text") {
           range.insertNode(document.createTextNode(fragment.content));
           range.collapse(false);
         } else {
-          // Create inline chip
-          const chip = document.createElement('span');
-          chip.className = 'inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 bg-primary/15 text-primary text-sm rounded border border-primary/25 align-middle';
-          chip.contentEditable = 'false';
+          
+          const chip = document.createElement("span");
+          chip.className =
+            "inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 bg-primary/15 text-primary text-sm rounded border border-primary/25 align-middle";
+          chip.contentEditable = "false";
           chip.dataset.mention = fragment.content;
           chip.innerHTML = `<span class="font-medium">@${fragment.content}</span>`;
           range.insertNode(chip);
           range.collapse(false);
-          range.insertNode(document.createTextNode(' '));
+          range.insertNode(document.createTextNode(" "));
           range.collapse(false);
         }
       }
     }
+
     
-    // Trigger input event to update state
-    const event = new Event('input', { bubbles: true });
+    const event = new Event("input", { bubbles: true });
     textInputRef.current.dispatchEvent(event);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (showMentionDropdown && filteredMentionDatasets.length > 0) {
-      if (e.key === 'ArrowDown') {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
-        setSelectedMentionIndex(prev => 
+        setSelectedMentionIndex((prev) =>
           prev < filteredMentionDatasets.length - 1 ? prev + 1 : 0
         );
         return;
       }
-      if (e.key === 'ArrowUp') {
+      if (e.key === "ArrowUp") {
         e.preventDefault();
-        setSelectedMentionIndex(prev => 
+        setSelectedMentionIndex((prev) =>
           prev > 0 ? prev - 1 : filteredMentionDatasets.length - 1
         );
         return;
       }
-      if (e.key === 'Enter' || e.key === 'Tab') {
+      if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
         handleMentionSelect(filteredMentionDatasets[selectedMentionIndex]);
         return;
       }
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         e.preventDefault();
         setShowMentionDropdown(false);
         return;
       }
     }
-    
-    if (e.key === 'Enter' && !e.shiftKey) {
+
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       const isNewChat = messages.length === 0;
-      const hasH5ad = uploadedData.some(d => d.file.name.endsWith('.h5ad'));
-      const hasJson = uploadedData.some(d => d.file.name.endsWith('.json'));
-      const hasBothFileTypes = hasH5ad && hasJson;
-      
-      if (isNewChat && !hasBothFileTypes) {
+
+      if (isNewChat && !hasBothRequiredFiles) {
         return;
       }
-      
+
       handleSend();
     }
-  };
-
-  const handleSuggestionClick = (suggestion: string) => {
-    onSendMessage(suggestion);
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     dragCounter.current++;
-    
+
     if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
       setIsDragging(true);
     }
@@ -506,7 +588,7 @@ const ChatArea = ({
     e.preventDefault();
     e.stopPropagation();
     dragCounter.current--;
-    
+
     if (dragCounter.current === 0) {
       setIsDragging(false);
     }
@@ -524,13 +606,13 @@ const ChatArea = ({
     dragCounter.current = 0;
 
     const files = Array.from(e.dataTransfer.files);
-    const imageFiles = files.filter(file => file.type.startsWith('image/'));
-    const dataFiles = files.filter(file => !file.type.startsWith('image/'));
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+    const dataFiles = files.filter((file) => !file.type.startsWith("image/"));
 
-    imageFiles.forEach(file => {
+    imageFiles.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setUploadedImages(prev => [...prev, reader.result as string]);
+        setUploadedImages((prev) => [...prev, reader.result as string]);
       };
       reader.readAsDataURL(file);
     });
@@ -541,7 +623,7 @@ const ChatArea = ({
   };
 
   return (
-    <div 
+    <div
       className="flex flex-col h-screen flex-1 bg-background relative"
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -550,19 +632,23 @@ const ChatArea = ({
     >
       <ChatDragOverlay isDragging={isDragging} />
       <ChatHeader />
-      
-      <div 
+
+      <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className={`flex-1 overflow-y-auto flex flex-col relative ${messages.length === 0 && !isLoading && !isTypingResponse ? 'items-center justify-center' : 'p-8'}`}
+        className={`flex-1 overflow-y-auto flex flex-col relative ${
+          messages.length === 0 && !isLoading && !isTypingResponse
+            ? "items-center justify-center"
+            : "p-8"
+        }`}
       >
         {isRestoringConversation || areDatasetsLoading ? (
-          <div className="flex-1" /> 
+          <div className="flex-1" />
         ) : messages.length > 0 || isLoading || isTypingResponse ? (
           <>
-            <ChatMessages 
-              messages={messages} 
-              isLoading={isLoading} 
+            <ChatMessages
+              messages={messages}
+              isLoading={isLoading}
               isTypingResponse={isTypingResponse}
               hasMoreMessages={hasMoreMessages}
               onLoadMore={onLoadMore}
@@ -576,25 +662,29 @@ const ChatArea = ({
               What can I help with?
             </h1>
             <p className="text-base text-muted-foreground max-w-md text-center mx-auto mb-2">
-              To start chatting, please upload an <span className="font-medium text-foreground">.h5ad</span> and <span className="font-medium text-foreground">.json</span> file first
+              To start chatting, please upload an{" "}
+              <span className="font-medium text-foreground">.h5ad</span> and{" "}
+              <span className="font-medium text-foreground">.json</span> file
+              first
             </p>
             <p className="text-sm text-muted-foreground max-w-md text-center mx-auto mb-8">
-              or use <span className="font-medium text-foreground">@</span> to mention existing files
+              or use <span className="font-medium text-foreground">@</span> to
+              mention existing files
             </p>
-            
+
             <div className="w-full relative">
-            {uploadedData.length > 0 && (
-              <div className="flex gap-2 mb-4">
-                {uploadedData.map((dataset, index) => (
-                  <FileChip 
-                    key={index}
-                    fileName={dataset.file.name}
-                    onRemove={() => handleRemoveDatasetChip(index)}
-                  />
-                ))}
-              </div>
-            )}
-              
+              {uploadedData.length > 0 && (
+                <div className="flex gap-2 mb-4">
+                  {uploadedData.map((dataset, index) => (
+                    <FileChip
+                      key={index}
+                      fileName={dataset.file.name}
+                      onRemove={() => handleRemoveDatasetChip(index)}
+                    />
+                  ))}
+                </div>
+              )}
+
               {uploadedImages.length > 0 && (
                 <div className="mb-3 flex gap-2 flex-wrap justify-center">
                   {uploadedImages.map((image, index) => (
@@ -614,7 +704,7 @@ const ChatArea = ({
                   ))}
                 </div>
               )}
-              
+
               {showMentionDropdown && filteredMentionDatasets.length > 0 && (
                 <div className="absolute top-full left-0 mt-2 w-64 bg-card border border-border rounded-lg shadow-lg overflow-hidden z-[100]">
                   <div className="p-2 text-xs text-muted-foreground border-b border-border">
@@ -626,7 +716,9 @@ const ChatArea = ({
                         key={index}
                         onClick={() => handleMentionSelect(dataset)}
                         className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
-                          index === selectedMentionIndex ? 'bg-accent' : 'hover:bg-accent'
+                          index === selectedMentionIndex
+                            ? "bg-accent"
+                            : "hover:bg-accent"
                         }`}
                       >
                         <HiOutlineDatabase className="w-4 h-4 text-muted-foreground flex-shrink-0" />
@@ -636,7 +728,7 @@ const ChatArea = ({
                   </div>
                 </div>
               )}
-              
+
               <div className="flex items-center gap-3 bg-background rounded-3xl border px-6 py-3 shadow-sm overflow-visible">
                 <input
                   type="file"
@@ -658,15 +750,19 @@ const ChatArea = ({
                     ref={textInputRef}
                     contentEditable={!isLoading && !isTypingResponse}
                     className="w-full border-0 shadow-none outline-none bg-transparent p-0 resize-none max-h-32 overflow-y-auto leading-normal empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground"
-                    style={{ minHeight: '1.5em' }}
-                    data-placeholder={isLoading || isTypingResponse ? "AI is thinking..." : "Ask a question about your data"}
+                    style={{ minHeight: "1.5em" }}
+                    data-placeholder={
+                      isLoading || isTypingResponse
+                        ? "AI is thinking..."
+                        : "Ask a question about your data"
+                    }
                     onInput={handleContentInput}
                     onKeyDown={handleKeyPress}
                     onPaste={handlePaste}
                     suppressContentEditableWarning
                   />
                 </div>
-                {(isLoading || isTypingResponse) ? (
+                {isLoading || isTypingResponse ? (
                   <button
                     onClick={stopGeneration}
                     className="flex-shrink-0 h-9 w-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-80 transition-opacity cursor-pointer"
@@ -676,8 +772,15 @@ const ChatArea = ({
                 ) : (
                   <button
                     onClick={handleSend}
-                    disabled={(!inputValue.trim() && uploadedImages.length === 0) || (messages.length === 0 && !(uploadedData.some(d => d.file.name.endsWith('.h5ad')) && uploadedData.some(d => d.file.name.endsWith('.json'))))}
-                    title={messages.length === 0 && !(uploadedData.some(d => d.file.name.endsWith('.h5ad')) && uploadedData.some(d => d.file.name.endsWith('.json'))) ? "Both .h5ad and .json files MUST be present" : ""}
+                    disabled={
+                      (!inputValue.trim() && uploadedImages.length === 0) ||
+                      (messages.length === 0 && !hasBothRequiredFiles)
+                    }
+                    title={
+                      messages.length === 0 && !hasBothRequiredFiles
+                        ? "Both .h5ad and .json files MUST be present"
+                        : ""
+                    }
                     className="flex-shrink-0 h-9 w-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <HiArrowRight className="w-4 h-4" />
@@ -694,7 +797,7 @@ const ChatArea = ({
           <button
             onClick={scrollToBottom}
             className={`absolute left-1/2 -translate-x-1/2 bottom-40 h-10 w-10 flex items-center justify-center rounded-full bg-muted border border-border shadow-lg hover:bg-accent transition-all duration-200 z-10 cursor-pointer ${
-              showScrollButton ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              showScrollButton ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
           >
             <HiArrowDown className="w-5 h-5 text-foreground" />
@@ -705,7 +808,7 @@ const ChatArea = ({
               {uploadedData.length > 0 && (
                 <div className="flex gap-2 mb-3">
                   {uploadedData.map((dataset, index) => (
-                    <FileChip 
+                    <FileChip
                       key={index}
                       fileName={dataset.file.name}
                       onRemove={() => handleRemoveDatasetChip(index)}
@@ -713,7 +816,7 @@ const ChatArea = ({
                   ))}
                 </div>
               )}
-              
+
               {uploadedImages.length > 0 && (
                 <div className="mb-3 flex gap-2 flex-wrap">
                   {uploadedImages.map((image, index) => (
@@ -733,7 +836,7 @@ const ChatArea = ({
                   ))}
                 </div>
               )}
-              
+
               {showMentionDropdown && filteredMentionDatasets.length > 0 && (
                 <div className="absolute bottom-16 left-8 w-64 bg-card border border-border rounded-lg shadow-lg overflow-hidden z-[100]">
                   <div className="p-2 text-xs text-muted-foreground border-b border-border">
@@ -745,7 +848,9 @@ const ChatArea = ({
                         key={index}
                         onClick={() => handleMentionSelect(dataset)}
                         className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
-                          index === selectedMentionIndex ? 'bg-accent' : 'hover:bg-accent'
+                          index === selectedMentionIndex
+                            ? "bg-accent"
+                            : "hover:bg-accent"
                         }`}
                       >
                         <HiOutlineDatabase className="w-4 h-4 text-muted-foreground flex-shrink-0" />
@@ -755,7 +860,7 @@ const ChatArea = ({
                   </div>
                 </div>
               )}
-              
+
               <div className="flex items-center gap-3 bg-background rounded-3xl border px-6 py-3 shadow-sm overflow-visible">
                 <input
                   type="file"
@@ -767,7 +872,12 @@ const ChatArea = ({
                 />
                 <button
                   onClick={() => imageInputRef.current?.click()}
-                  disabled={isLoading || isTypingResponse || isRestoringConversation || areDatasetsLoading}
+                  disabled={
+                    isLoading ||
+                    isTypingResponse ||
+                    isRestoringConversation ||
+                    areDatasetsLoading
+                  }
                   className="flex-shrink-0 p-0 hover:opacity-70 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <HiPhotograph className="w-7 h-7" />
@@ -775,17 +885,29 @@ const ChatArea = ({
                 <div className="flex-1 relative">
                   <div
                     ref={textInputRef}
-                    contentEditable={!isLoading && !isTypingResponse && !isRestoringConversation && !areDatasetsLoading}
+                    contentEditable={
+                      !isLoading &&
+                      !isTypingResponse &&
+                      !isRestoringConversation &&
+                      !areDatasetsLoading
+                    }
                     className="w-full border-0 shadow-none outline-none bg-transparent p-0 resize-none max-h-32 overflow-y-auto leading-normal empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground"
-                    style={{ minHeight: '1.5em' }}
-                    data-placeholder={isLoading || isTypingResponse || isRestoringConversation || areDatasetsLoading ? "AI is thinking..." : "Ask a question about your data"}
+                    style={{ minHeight: "1.5em" }}
+                    data-placeholder={
+                      isLoading ||
+                      isTypingResponse ||
+                      isRestoringConversation ||
+                      areDatasetsLoading
+                        ? "AI is thinking..."
+                        : "Ask a question about your data"
+                    }
                     onInput={handleContentInput}
                     onKeyDown={handleKeyPress}
                     onPaste={handlePaste}
                     suppressContentEditableWarning
                   />
                 </div>
-                {(isLoading || isTypingResponse) ? (
+                {isLoading || isTypingResponse ? (
                   <button
                     onClick={stopGeneration}
                     className="flex-shrink-0 h-9 w-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-80 transition-opacity cursor-pointer"
@@ -795,8 +917,15 @@ const ChatArea = ({
                 ) : (
                   <button
                     onClick={handleSend}
-                    disabled={(!inputValue.trim() && uploadedImages.length === 0) || (messages.length === 0 && !(uploadedData.some(d => d.file.name.endsWith('.h5ad')) && uploadedData.some(d => d.file.name.endsWith('.json'))))}
-                    title={messages.length === 0 && !(uploadedData.some(d => d.file.name.endsWith('.h5ad')) && uploadedData.some(d => d.file.name.endsWith('.json'))) ? "Both .h5ad and .json files MUST be present" : ""}
+                    disabled={
+                      (!inputValue.trim() && uploadedImages.length === 0) ||
+                      (messages.length === 0 && !hasBothRequiredFiles)
+                    }
+                    title={
+                      messages.length === 0 && !hasBothRequiredFiles
+                        ? "Both .h5ad and .json files MUST be present"
+                        : ""
+                    }
                     className="flex-shrink-0 h-9 w-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <HiArrowRight className="w-4 h-4" />
