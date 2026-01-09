@@ -143,6 +143,13 @@ const ChatArea = ({
 
   const handleSend = () => {
     const text = getTextContent();
+    const isNewChat = messages.length === 0;
+    const hasDatasets = uploadedData.length > 0;
+    
+    if (isNewChat && !hasDatasets) {
+      return;
+    }
+    
     if (text.trim() || uploadedImages.length > 0) {
       onSendMessage(text, uploadedImages.length > 0 ? uploadedImages : undefined);
       setInputValue('');
@@ -398,6 +405,13 @@ const ChatArea = ({
     
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      const isNewChat = messages.length === 0;
+      const hasDatasets = uploadedData.length > 0;
+      
+      if (isNewChat && !hasDatasets) {
+        return;
+      }
+      
       handleSend();
     }
   };
@@ -486,9 +500,15 @@ const ChatArea = ({
           </>
         ) : (
           <div className="w-full max-w-3xl px-4 -mt-32">
-            <h1 className="text-4xl font-normal text-foreground mb-8 text-center">
+            <h1 className="text-4xl font-normal text-foreground mb-4 text-center">
               What can I help with?
             </h1>
+            <p className="text-base text-muted-foreground max-w-md text-center mx-auto mb-2">
+              To start chatting, please upload an <span className="font-medium text-foreground">.h5ad</span> and <span className="font-medium text-foreground">.json</span> file first
+            </p>
+            <p className="text-sm text-muted-foreground max-w-md text-center mx-auto mb-8">
+              or use <span className="font-medium text-foreground">@</span> to mention existing files
+            </p>
             
             <div className="w-full relative">
             {uploadedData.length > 0 && (
@@ -584,7 +604,7 @@ const ChatArea = ({
                 ) : (
                   <button
                     onClick={handleSend}
-                    disabled={!inputValue.trim() && uploadedImages.length === 0}
+                    disabled={(!inputValue.trim() && uploadedImages.length === 0) || (messages.length === 0 && uploadedData.length === 0)}
                     className="flex-shrink-0 h-9 w-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <HiArrowRight className="w-4 h-4" />
@@ -702,7 +722,7 @@ const ChatArea = ({
                 ) : (
                   <button
                     onClick={handleSend}
-                    disabled={!inputValue.trim() && uploadedImages.length === 0}
+                    disabled={(!inputValue.trim() && uploadedImages.length === 0) || (messages.length === 0 && uploadedData.length === 0)}
                     className="flex-shrink-0 h-9 w-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <HiArrowRight className="w-4 h-4" />
