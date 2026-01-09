@@ -60,6 +60,7 @@ const ChatArea = ({
   const imageInputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLDivElement>(null);
   const dragCounter = useRef(0);
+  const previousUploadedDataRef = useRef<ParsedDataset[]>([]);
   const { stopGeneration } = useChatContext();
   const { t } = useLanguage();
 
@@ -86,6 +87,73 @@ const ChatArea = ({
       textInputRef.current?.focus();
     }
   }, [isLoading, isTypingResponse, isRestoringConversation, areDatasetsLoading, messages.length]);
+
+  useEffect(() => {
+    if (!textInputRef.current) return;
+    
+    const previousDatasets = previousUploadedDataRef.current;
+    const newDatasets = uploadedData.filter(
+      dataset => !previousDatasets.some(prev => prev.file?.name === dataset.file?.name)
+    );
+    
+    if (newDatasets.length === 0) {
+      previousUploadedDataRef.current = uploadedData;
+      return;
+    }
+    
+    const existingMentions = new Set<string>();
+    textInputRef.current.querySelectorAll('[data-mention]').forEach(el => {
+      const mention = (el as HTMLElement).dataset.mention;
+      if (mention) existingMentions.add(mention);
+    });
+    
+    for (const dataset of newDatasets) {
+      if (existingMentions.has(dataset.file?.name || '')) {
+        continue;
+      }
+      
+      const chip = document.createElement('span');
+      chip.className = 'inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 bg-primary/15 text-primary text-sm rounded border border-primary/25 align-middle';
+      chip.contentEditable = 'false';
+      chip.dataset.mention = dataset.file?.name || '';
+      chip.innerHTML = `<span class="font-medium">@${dataset.file?.name}</span>`;
+      
+      if (textInputRef.current.childNodes.length === 0 || textInputRef.current.innerHTML === '') {
+        textInputRef.current.appendChild(chip);
+        textInputRef.current.appendChild(document.createTextNode(' '));
+      } else {
+        textInputRef.current.appendChild(document.createTextNode(' '));
+        textInputRef.current.appendChild(chip);
+        textInputRef.current.appendChild(document.createTextNode(' '));
+      }
+    }
+    
+    setMentionedDatasets(prev => [...prev, ...newDatasets]);
+    previousUploadedDataRef.current = uploadedData;
+    
+    let text = '';
+    textInputRef.current.childNodes.forEach(node => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        text += node.textContent;
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as HTMLElement;
+        if (el.dataset.mention) {
+          text += `@${el.dataset.mention}`;
+        } else {
+          text += el.textContent;
+        }
+      }
+    });
+    setInputValue(text);
+    
+    textInputRef.current.focus();
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(textInputRef.current);
+    range.collapse(false);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  }, [uploadedData]);
 
   const handleScroll = () => {
     const container = scrollContainerRef.current;
@@ -144,9 +212,11 @@ const ChatArea = ({
   const handleSend = () => {
     const text = getTextContent();
     const isNewChat = messages.length === 0;
-    const hasDatasets = uploadedData.length > 0;
+    const hasH5ad = uploadedData.some(d => d.file.name.endsWith('.h5ad'));
+    const hasJson = uploadedData.some(d => d.file.name.endsWith('.json'));
+    const hasBothFileTypes = hasH5ad && hasJson;
     
-    if (isNewChat && !hasDatasets) {
+    if (isNewChat && !hasBothFileTypes) {
       return;
     }
     
@@ -406,9 +476,11 @@ const ChatArea = ({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       const isNewChat = messages.length === 0;
-      const hasDatasets = uploadedData.length > 0;
+      const hasH5ad = uploadedData.some(d => d.file.name.endsWith('.h5ad'));
+      const hasJson = uploadedData.some(d => d.file.name.endsWith('.json'));
+      const hasBothFileTypes = hasH5ad && hasJson;
       
-      if (isNewChat && !hasDatasets) {
+      if (isNewChat && !hasBothFileTypes) {
         return;
       }
       
@@ -604,7 +676,8 @@ const ChatArea = ({
                 ) : (
                   <button
                     onClick={handleSend}
-                    disabled={(!inputValue.trim() && uploadedImages.length === 0) || (messages.length === 0 && uploadedData.length === 0)}
+                    disabled={(!inputValue.trim() && uploadedImages.length === 0) || (messages.length === 0 && !(uploadedData.some(d => d.file.name.endsWith('.h5ad')) && uploadedData.some(d => d.file.name.endsWith('.json'))))}
+                    title={messages.length === 0 && !(uploadedData.some(d => d.file.name.endsWith('.h5ad')) && uploadedData.some(d => d.file.name.endsWith('.json'))) ? "Both .h5ad and .json files MUST be present" : ""}
                     className="flex-shrink-0 h-9 w-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <HiArrowRight className="w-4 h-4" />
@@ -722,7 +795,8 @@ const ChatArea = ({
                 ) : (
                   <button
                     onClick={handleSend}
-                    disabled={(!inputValue.trim() && uploadedImages.length === 0) || (messages.length === 0 && uploadedData.length === 0)}
+                    disabled={(!inputValue.trim() && uploadedImages.length === 0) || (messages.length === 0 && !(uploadedData.some(d => d.file.name.endsWith('.h5ad')) && uploadedData.some(d => d.file.name.endsWith('.json'))))}
+                    title={messages.length === 0 && !(uploadedData.some(d => d.file.name.endsWith('.h5ad')) && uploadedData.some(d => d.file.name.endsWith('.json'))) ? "Both .h5ad and .json files MUST be present" : ""}
                     className="flex-shrink-0 h-9 w-9 flex items-center justify-center rounded-full bg-foreground text-background hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <HiArrowRight className="w-4 h-4" />

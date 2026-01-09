@@ -54,6 +54,12 @@ export function DatasetProvider({ children }: { children: ReactNode }) {
 
   const addDatasets = async (datasets: ParsedDataset[], originalFiles?: File[]) => {
     setAllDatasets(prev => [...prev, ...datasets]);
+    setActiveDatasets(prev => {
+      const newDatasets = datasets.filter(
+        dataset => !prev.some(d => d.file.name === dataset.file.name)
+      );
+      return [...prev, ...newDatasets];
+    });
   };
 
   const removeFromActive = (index: number) => {
