@@ -1,68 +1,57 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const FLASK_BACKEND_URL =
+  process.env.FLASK_BACKEND_URL || "http://localhost:5001";
+const TITLE_TIMEOUT_MS = Number(process.env.TITLE_TIMEOUT_MS || 8000);
+
+function computeFallbackTitle(firstMessage: string) {
+  const firstLine = firstMessage.split("\n")[0] ?? "";
+  const title = firstLine.substring(0, 50);
+  return title.length < firstLine.length ? `${title}...` : title;
+}
 
 export async function POST(request: NextRequest) {
-  try {
-    const { firstMessage } = await request.json();
+  const body = await request.json().catch(() => ({} as any));
+  const firstMessage: string = (body?.firstMessage ?? "").toString();
 
-    // Validate API key
-    if (!OPENAI_API_KEY) {
-      // Fallback to simple truncation
-      const title = firstMessage.split('\n')[0].substring(0, 50);
-      const fallbackTitle = title.length < firstMessage.length ? `${title}...` : title;
+  if (!firstMessage.trim()) {
+    return NextResponse.json(
+      { error: "Missing required field: firstMessage" },
+      { status: 400 }
+    );
+  }
+
+  const fallbackTitle = computeFallbackTitle(firstMessage);
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TITLE_TIMEOUT_MS);
+
+    const resp = await fetch(`${FLASK_BACKEND_URL}/api/title`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(request.headers.get("authorization")
+          ? { Authorization: request.headers.get("authorization")! }
+          : {}),
+      },
+      body: JSON.stringify({ firstMessage }),
+      signal: controller.signal,
+      cache: "no-store",
+    });
+
+    clearTimeout(timer);
+
+    if (!resp.ok) {
       return NextResponse.json({ title: fallbackTitle });
     }
 
-    // Validate required fields
-    if (!firstMessage) {
-      return NextResponse.json(
-        { error: 'Missing required field: firstMessage' },
-        { status: 400 }
-      );
-    }
+    const data = await resp.json().catch(() => ({} as any));
+    const title = (data?.title ?? "").toString().trim();
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: 'You generate concise conversation titles using 2-3 short words maximum. Return only the title, no quotes or punctuation.'
-          },
-          {
-            role: 'user',
-            content: `Generate a title for a conversation that starts with: "${firstMessage}"`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 15,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const title = data.choices[0]?.message?.content?.trim() || firstMessage.substring(0, 50);
-
-    return NextResponse.json({ title });
-  } catch (error: unknown) {
-    const err = error as Error;
-    console.error('Title generation API error:', err);
-
-    // Fallback to simple truncation on error
-    const { firstMessage } = await request.json();
-    const title = firstMessage.split('\n')[0].substring(0, 50);
-    const fallbackTitle = title.length < firstMessage.length ? `${title}...` : title;
-
+    return NextResponse.json({ title: title || fallbackTitle });
+  } catch (err) {
+    console.error("Title proxy error:", err);
     return NextResponse.json({ title: fallbackTitle });
   }
 }

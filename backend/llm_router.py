@@ -1,8 +1,12 @@
 import os
 import json
 import logging
+import re
+import string
 from datetime import datetime
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
+from system_prompts.title import TITLE_SYSTEM_PROMPT
+from system_prompts.chat import build_chat_system_prompt
 
 from openai import OpenAI
 from mcp_client import MCPToolClient, run_async
@@ -34,9 +38,26 @@ def mcp_tools_to_openai_tools(mcp_tools: List[Dict[str, Any]]) -> List[Dict[str,
         })
     return out
 
-def run_chat_with_tools(messages: List[Dict[str, Any]], mcp_url: str, max_tool_calls: int = 12) -> Tuple[str, List[Dict[str, Any]]]:
+def _inject_system_prompt(messages: List[Dict[str, Any]], dataset_info: Optional[str]) -> List[Dict[str, Any]]:
+    system_prompt = build_chat_system_prompt(dataset_info)
+
+    if messages and messages[0].get("role") == "system":
+        # Replace whatever frontend provided to centralize prompts in backend
+        messages[0]["content"] = system_prompt
+        return messages
+
+    return [{"role": "system", "content": system_prompt}] + messages
+
+
+def run_chat_with_tools(
+        messages: List[Dict[str, Any]], 
+        mcp_url: str, max_tool_calls: int = 12,
+        model: Optional[str] = None,
+        dataset_info: Optional[str] = None,
+        ) -> Tuple[str, List[Dict[str, Any]]]:
     logger.info(f"Starting chat with {len(messages)} messages, max_tool_calls={max_tool_calls}")
-    
+    messages = _inject_system_prompt(messages, dataset_info)
+
     mcp = MCPToolClient(mcp_url)
 
     #get tool catalog from MCP
@@ -49,7 +70,7 @@ def run_chat_with_tools(messages: List[Dict[str, Any]], mcp_url: str, max_tool_c
         logger.info(f"=== Round {round_num + 1}/{max_tool_calls} ===")
         
         resp = client.chat.completions.create(
-            model=_get_model(),
+            model=model or _get_model(),
             messages=messages,
             tools=openai_tools,
             tool_choice="auto",
@@ -94,3 +115,69 @@ def run_chat_with_tools(messages: List[Dict[str, Any]], mcp_url: str, max_tool_c
 
 def _get_model() -> str:
     return os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+
+def _title_fallback(first_message: str) -> str:
+    first_line = (first_message or "").split("\n")[0].strip()
+    if not first_line:
+        return "New chat"
+    title = first_line[:50]
+    return f"{title}..." if len(first_line) > 50 else title
+
+def _sanitize_title(title: str, max_words: int = 3, max_chars: int = 60) -> str:
+    t = (title or "").strip()
+
+    # Remove surrounding quotes
+    t = t.strip("\"'“”‘’`")
+
+    # Remove punctuation anywhere (keep spaces + alphanumerics)
+    t = t.translate(str.maketrans("", "", string.punctuation))
+
+    # Collapse whitespace
+    t = re.sub(r"\s+", " ", t).strip()
+
+    # Cap words
+    words = t.split(" ")
+    t = " ".join(words[:max_words])
+
+    # Cap chars
+    if len(t) > max_chars:
+        t = t[:max_chars].rstrip()
+
+    return t
+
+def generate_conversation_title(first_message: str, model: Optional[str] = None) -> str:
+    """
+    Generate a short conversation title for the first user message.
+
+    Prefers the Responses API (recommended for new projects), with fallback to
+    Chat Completions for older setups. :contentReference[oaicite:1]{index=1}
+    """
+    first_message = (first_message or "").strip()
+    fallback = _title_fallback(first_message)
+
+    if not first_message:
+        return fallback
+
+    try:
+        resp = client.chat.completions.create(
+                model=model or _get_model(),
+                messages=[
+                    {"role": "system", "content": TITLE_SYSTEM_PROMPT},
+                    {"role": "user", "content": f'Generate a title for a conversation that starts with: "{first_message}"'},
+                ],
+                temperature=0.7,
+                max_completion_tokens=15,
+            )
+        raw = (resp.choices[0].message.content or "").strip()
+
+        title = _sanitize_title(raw)
+
+        if not title:
+            return fallback
+
+        return title
+
+    except Exception as e:
+        logger.exception(f"Title generation failed: {e}")
+        return fallback

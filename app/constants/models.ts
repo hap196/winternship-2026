@@ -22,13 +22,14 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     contextLength: 128000,
     costTier: 'medium'
   },
-  { 
-    id: 'gpt-5-pro', 
-    name: 'GPT-5 Pro', 
-    description: 'Fast and affordable',
-    contextLength: 16385,
-    costTier: 'low'
-  },
+  // not supported by chat completions API
+  // { 
+  //   id: 'gpt-5-pro', 
+  //   name: 'GPT-5 Pro', 
+  //   description: 'Fast and affordable',
+  //   contextLength: 16385,
+  //   costTier: 'low'
+  // },
 ];
 
 export const DEFAULT_MODEL = 'gpt-5.1';

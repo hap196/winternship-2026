@@ -13,7 +13,7 @@ class MCPToolClient:
             async with ClientSession(r, w) as session:
                 await session.initialize()
                 resp = await session.list_tools()
-                # resp.tools: list of tool objects with name/description/inputSchema
+                # resp.tools is list of tool objects with name/description/inputSchema
                 tools = []
                 for t in resp.tools:
                     tools.append({
@@ -29,8 +29,6 @@ class MCPToolClient:
                 await session.initialize()
                 result = await session.call_tool(name=name, arguments=arguments)
 
-                # Common MCP result: result.content is a list of typed chunks; often text is in .text
-                # Keep it simple: return both raw + a best-effort text field.
                 text_parts = []
                 for item in result.content:
                     if hasattr(item, "text") and item.text:
