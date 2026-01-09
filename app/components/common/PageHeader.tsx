@@ -12,7 +12,7 @@ import {
 import { useChatContext } from '../../providers/ChatProvider';
 import { useSidebar } from '../../providers/SidebarProvider';
 import { useRouter } from 'next/navigation';
-import { AVAILABLE_MODELS, getModelById } from '../../constants/models';
+import { AVAILABLE_MODELS, getModelById, DEFAULT_MODEL } from '../../constants/models';
 import { Project } from '../../types';
 
 interface PageHeaderProps {
@@ -40,7 +40,13 @@ export default function PageHeader({
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
 
-  const currentModel = getModelById(selectedModel) || AVAILABLE_MODELS[0];
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const modelIdForLabel = mounted ? selectedModel : DEFAULT_MODEL;
+  const currentModel = getModelById(modelIdForLabel) || getModelById(DEFAULT_MODEL) || AVAILABLE_MODELS[0];
   const currentProject = projects.find(p => p.id === projectId);
 
   useEffect(() => {

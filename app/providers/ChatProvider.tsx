@@ -6,7 +6,7 @@ import { Message, Conversation } from '../types';
 import { sendMessageToLLM } from '../services/llmService';
 import { formatFullDataForLLM } from '../services/fileParser';
 import { ParsedDataset } from '../types';
-import { DEFAULT_MODEL } from '../constants/models';
+import { DEFAULT_MODEL, isValidModel} from '../constants/models';
 
 interface ChatContextType {
   messages: Message[];
@@ -38,12 +38,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [currentConversationTitle, setCurrentConversationTitle] = useState<string | null>(null);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('selectedModel') || DEFAULT_MODEL;
-    }
-    return DEFAULT_MODEL;
-  });
+  const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_MODEL);
+  const [modelHydrated, setModelHydrated] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [pendingImages, setPendingImages] = useState<string[] | undefined>(undefined);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
@@ -56,8 +52,28 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const urlConversationId = params?.conversationId as string | undefined;
 
   useEffect(() => {
-    localStorage.setItem('selectedModel', selectedModel);
-  }, [selectedModel]);
+    try {
+      const saved = localStorage.getItem('selectedModel');
+      if (saved && isValidModel(saved)) {
+        setSelectedModel(saved);
+      } else if (saved) {
+        localStorage.removeItem('selectedModel'); // cleanup stale values
+      }
+    } catch (e) {
+      // ignore storage errors
+    } finally {
+      setModelHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!modelHydrated) return;
+    try {
+      localStorage.setItem('selectedModel', selectedModel);
+    } catch (e) {
+      // ignore storage errors
+    }
+  }, [selectedModel, modelHydrated]);
 
   useEffect(() => {
     if (urlConversationId && urlConversationId !== 'new') {
