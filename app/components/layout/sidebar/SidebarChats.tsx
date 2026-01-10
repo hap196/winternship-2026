@@ -23,7 +23,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Conversation, Project } from '@/app/types';
 import { SidebarTypingTitle } from './SidebarTypingTitle';
-import { useLanguage } from '../../../providers/LanguageProvider';
 
 interface SidebarChatsProps {
   conversations: Conversation[];
@@ -58,7 +57,6 @@ export const SidebarChats = ({
   const [renameValue, setRenameValue] = useState('');
   const [isChatsCollapsed, setIsChatsCollapsed] = useState(false);
   const [hoveredSection, setHoveredSection] = useState<'chats' | null>(null);
-  const { t } = useLanguage();
 
   const handleRenameConversation = async () => {
     if (!renamingConversationId || !renameValue.trim()) return;
@@ -108,11 +106,11 @@ export const SidebarChats = ({
       }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('Rename Conversation')}</DialogTitle>
+            <DialogTitle>Rename Conversation</DialogTitle>
           </DialogHeader>
           <div className="flex gap-2 mt-4">
             <Input
-              placeholder={t('Conversation name')}
+              placeholder="Conversation name"
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyPress={(e) => {
@@ -121,7 +119,7 @@ export const SidebarChats = ({
                 }
               }}
             />
-            <Button onClick={handleRenameConversation}>{t('Rename')}</Button>
+            <Button onClick={handleRenameConversation}>Rename</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -174,12 +172,12 @@ export const SidebarChats = ({
                 setRenameValue(conversation.title);
               }}>
                 <HiOutlinePencil className="w-4 h-4 text-white" />
-                <span className="text-base">{t('Rename')}</span>
+                <span className="text-base">Rename</span>
               </DropdownMenuItem>
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   <HiOutlineFolder className="w-4 h-4 text-white" />
-                  <span className="text-base">{t('Move to project')}</span>
+                  <span className="text-base">Move to project</span>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
                   {projects.length > 0 ? (
@@ -208,7 +206,7 @@ export const SidebarChats = ({
                         handleAssignToProject(conversation.id, null);
                       }}>
                         <HiOutlineFolder className="w-4 h-4 text-white" />
-                        <span className="text-base">{t('Remove from project')}</span>
+                        <span className="text-base">Remove from project</span>
                       </DropdownMenuItem>
                     </>
                   )}
@@ -240,7 +238,7 @@ export const SidebarChats = ({
                 }}
               >
                 <HiTrash className="w-4 h-4" />
-                <span className="text-base">{t('Delete')}</span>
+                <span className="text-base">Delete</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -261,7 +259,7 @@ export const SidebarChats = ({
         onMouseLeave={() => setHoveredSection(null)}
         onClick={() => setIsChatsCollapsed(!isChatsCollapsed)}
       >
-        {t('Chats')}
+        Chats
         <HiChevronRight 
           className={`w-3 h-3 text-sidebar-foreground transition-all ${
             hoveredSection === 'chats' ? 'opacity-100' : 'opacity-0'

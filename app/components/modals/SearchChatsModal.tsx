@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { HiX, HiOutlineSearch } from 'react-icons/hi';
 import { useChatContext } from '../../providers/ChatProvider';
 import { useRouter } from 'next/navigation';
-import { useLanguage } from '../../providers/LanguageProvider';
 import { Conversation } from '../../types';
 
 interface SearchChatsModalProps {
@@ -15,7 +14,6 @@ interface SearchChatsModalProps {
 export default function SearchChatsModal({ isOpen, onClose }: SearchChatsModalProps) {
   const { loadConversation, startNewChat } = useChatContext();
   const router = useRouter();
-  const { t } = useLanguage();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -58,9 +56,9 @@ export default function SearchChatsModal({ isOpen, onClose }: SearchChatsModalPr
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 7) return t('Previous 7 Days');
-    if (diffDays < 30) return t('Previous 30 Days');
-    return t('Older');
+    if (diffDays < 7) return 'Previous 7 Days';
+    if (diffDays < 30) return 'Previous 30 Days';
+    return 'Older';
   };
 
   const groupedConversations = filteredConversations.reduce((acc, conv) => {
@@ -86,7 +84,7 @@ export default function SearchChatsModal({ isOpen, onClose }: SearchChatsModalPr
           <input
             type="text"
             autoFocus
-            placeholder={t('Search chats...')}
+            placeholder="Search chats..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground text-foreground"
@@ -108,7 +106,7 @@ export default function SearchChatsModal({ isOpen, onClose }: SearchChatsModalPr
               <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
                 <span className="text-sm">✏️</span>
               </div>
-              <span className="text-sm text-foreground font-medium">{t('New chat')}</span>
+              <span className="text-sm text-foreground font-medium">New chat</span>
             </button>
 
             {Object.entries(groupedConversations).map(([group, chats]) => (
@@ -136,7 +134,7 @@ export default function SearchChatsModal({ isOpen, onClose }: SearchChatsModalPr
             {filteredConversations.length === 0 && searchQuery && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <HiOutlineSearch className="w-10 h-10 text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">{t('No chats found')}</p>
+                <p className="text-sm text-muted-foreground">No chats found</p>
               </div>
             )}
           </div>

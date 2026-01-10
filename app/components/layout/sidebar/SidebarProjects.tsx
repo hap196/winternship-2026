@@ -19,7 +19,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Project } from '@/app/types';
-import { useLanguage } from '../../../providers/LanguageProvider';
 import { SidebarTypingTitle } from './SidebarTypingTitle';
 import { SidebarChats } from './SidebarChats';
 
@@ -52,7 +51,6 @@ export const SidebarProjects = ({
   const [hoveredSection, setHoveredSection] = useState<'projects' | null>(null);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-  const { t } = useLanguage();
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
@@ -71,7 +69,7 @@ export const SidebarProjects = ({
       >
         <div className="flex items-center gap-2">
           <div className="text-sm font-semibold text-sidebar-foreground uppercase tracking-wider">
-            {t('Projects')}
+            Projects
           </div>
           <HiChevronRight 
             className={`w-3 h-3 text-sidebar-foreground transition-all ${
@@ -90,16 +88,16 @@ export const SidebarProjects = ({
                 className="w-full justify-start gap-2 pl-3 pr-8 text-base text-sidebar-foreground hover:bg-sidebar-accent/50 h-11"
               >
                 <HiOutlineFolderAdd className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate max-w-[240px]">{t('New project')}</span>
+                <span className="truncate max-w-[240px]">New project</span>
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{t('New Project')}</DialogTitle>
+                <DialogTitle>New Project</DialogTitle>
               </DialogHeader>
               <div className="flex gap-2 mt-4">
                 <Input
-                  placeholder={t('Project name')}
+                  placeholder="Project name"
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
                   onKeyPress={(e) => {
@@ -108,7 +106,7 @@ export const SidebarProjects = ({
                     }
                   }}
                 />
-                <Button onClick={handleCreateProject}>{t('Create')}</Button>
+                <Button onClick={handleCreateProject}>Create</Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -161,7 +159,7 @@ export const SidebarProjects = ({
                         }}
                       >
                         <HiTrash className="w-4 h-4" />
-                        <span className="text-base">{t('Delete')}</span>
+                        <span className="text-base">Delete</span>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import SearchChatsModal from '../../modals/SearchChatsModal';
 import { useKeyboardShortcuts } from '../../../hooks/useKeyboardShortcuts';
-import { useLanguage } from '../../../providers/LanguageProvider';
 import { useState, useEffect, useCallback } from 'react';
 import { Conversation, Project } from '../../../types';
 import { SidebarNavButton } from './SidebarNavButton';
@@ -31,8 +30,7 @@ const Sidebar = ({ onNewChat, onNavigate, currentPath = '/', onToggleSidebar }: 
   const { loadConversation, currentConversationId, startNewChat, refreshConversations, typingTitleId } = useChatContext();
   const router = useRouter();
   const pathname = usePathname();
-  const { t } = useLanguage();
-  
+
   const [isSearchChatsOpen, setIsSearchChatsOpen] = useState(false);
   const [deletingProject, setDeletingProject] = useState<{ id: string; name: string; chatCount: number } | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);

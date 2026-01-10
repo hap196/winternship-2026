@@ -12,9 +12,7 @@ def register_visual_tools(mcp):
         h5ad_id: str,
         program_name: str,
         group_by: str,
-        title: str = "",
-        show_significance: bool = False,
-        p_values: dict = None
+        title: str = ""
     ) -> dict:
         """
         Create boxplot using summary statistics (no raw data transfer).
@@ -25,8 +23,6 @@ def register_visual_tools(mcp):
             program_name: Program column (e.g., 'new_program_5_activity_scaled')
             group_by: Metadata column to group by (e.g., 'disease_status')
             title: Chart title (optional)
-            show_significance: Add * markers for significant differences
-            p_values: Dict of {group_pair: p_value} for significance (optional)
         """
         adata = _load_h5ad(h5ad_id)
         if adata is None:
@@ -69,7 +65,6 @@ def register_visual_tools(mcp):
                 q3=[q3],
                 lowerfence=[min_val],
                 upperfence=[max_val],
-                customdata=[[mean_val]],
                 boxmean='sd',
                 marker_color='lightblue' if 'Ctrl' in str(group_val) else 'salmon',
                 name=str(group_val),

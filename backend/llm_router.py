@@ -3,7 +3,6 @@ import json
 import logging
 import re
 import string
-from datetime import datetime
 from typing import Any, Dict, List, Tuple, Optional
 from system_prompts.title import TITLE_SYSTEM_PROMPT
 from system_prompts.chat import build_chat_system_prompt
@@ -42,7 +41,6 @@ def _inject_system_prompt(messages: List[Dict[str, Any]], dataset_info: Optional
     system_prompt = build_chat_system_prompt(dataset_info)
 
     if messages and messages[0].get("role") == "system":
-        # Replace whatever frontend provided to centralize prompts in backend
         messages[0]["content"] = system_prompt
         return messages
 
@@ -149,9 +147,6 @@ def _sanitize_title(title: str, max_words: int = 3, max_chars: int = 60) -> str:
 def generate_conversation_title(first_message: str, model: Optional[str] = None) -> str:
     """
     Generate a short conversation title for the first user message.
-
-    Prefers the Responses API (recommended for new projects), with fallback to
-    Chat Completions for older setups. :contentReference[oaicite:1]{index=1}
     """
     first_message = (first_message or "").strip()
     fallback = _title_fallback(first_message)
