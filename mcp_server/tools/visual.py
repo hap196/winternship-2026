@@ -47,7 +47,7 @@ def register_visual_tools(mcp):
             mask = adata.obs[group_by] == group_val
             values = adata.obs.loc[mask, program_name].values
             
-            # Compute quartiles (just 5 numbers!)
+            # Compute quartiles
             q1 = float(np.percentile(values, 25))
             median = float(np.percentile(values, 50))
             q3 = float(np.percentile(values, 75))
@@ -78,6 +78,43 @@ def register_visual_tools(mcp):
         )
         
         return {"type": "plotly", "spec": fig.to_dict()}
+
+    @mcp.tool()
+    def boxplot_batch(
+        h5ad_id: str,
+        program_names: list[str],
+        group_by: str,
+        title_prefix: str = "Program"
+    ) -> dict:
+        """
+        Create multiple boxplots at once (max 5).
+        Returns list of Plotly specs for carousel display.
+        
+        Args:
+            h5ad_id: Dataset ID for H5AD file
+            program_names: List of program columns (e.g., ['new_program_3_activity_scaled', ...])
+            group_by: Metadata column to group by (e.g., 'disease_status')
+            title_prefix: Prefix for chart titles (default: "Program")
+        """
+        if len(program_names) > 5:
+            program_names = program_names[:5]
+        
+        plots = []
+        for program_name in program_names:
+            result = boxplot(
+                h5ad_id=h5ad_id,
+                program_name=program_name,
+                group_by=group_by,
+                title=f"{title_prefix} {program_name.replace('new_program_', '').replace('_activity_scaled', '')}"
+            )
+            
+            if "error" not in result:
+                plots.append(result["spec"])
+        
+        if len(plots) == 0:
+            return {"error": "No valid plots generated"}
+        
+        return {"type": "plotly_batch", "plots": plots}
 
     @mcp.tool()
     def correlation_heatmap(programs: list[str], corr: list[list[float]], title: str = "Program–program correlation") -> dict:
