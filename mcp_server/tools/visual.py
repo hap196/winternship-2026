@@ -43,38 +43,48 @@ def register_visual_tools(mcp):
         
         fig = go.Figure()
         
+        all_values = adata.obs[program_name].values
+        data_min = float(np.min(all_values))
+        data_max = float(np.max(all_values))
+        data_range = data_max - data_min
+        y_min = data_min - (data_range * 0.25)
+        y_max = data_max + (data_range * 0.25)
+        
         for group_val in sorted(adata.obs[group_by].unique()):
             mask = adata.obs[group_by] == group_val
             values = adata.obs.loc[mask, program_name].values
             
-            # Compute quartiles
+            # compute stats
+            min_val = float(np.min(values))
+            max_val = float(np.max(values))
+            mean_val = float(np.mean(values))
             q1 = float(np.percentile(values, 25))
             median = float(np.percentile(values, 50))
             q3 = float(np.percentile(values, 75))
-            iqr = q3 - q1
-            lower_fence = float(np.percentile(values, 0))
-            upper_fence = float(np.percentile(values, 100))
             
             fig.add_trace(go.Box(
-                y=[str(group_val)],  # Groups on y-axis
+                x=[str(group_val)],
                 q1=[q1],
                 median=[median],
                 q3=[q3],
-                lowerfence=[lower_fence],
-                upperfence=[upper_fence],
-                orientation='h',  # Horizontal orientation
+                lowerfence=[min_val],
+                upperfence=[max_val],
+                customdata=[[mean_val]],
                 boxmean='sd',
                 marker_color='lightblue' if 'Ctrl' in str(group_val) else 'salmon',
-                name=str(group_val)
+                name=str(group_val),
             ))
         
         fig.update_layout(
             title=title,
-            yaxis_title=group_by,
-            xaxis_title="Activity",
+            xaxis_title=group_by,
+            yaxis=dict(
+                title="Activity",
+                range=[y_min, y_max]
+            ),
             showlegend=False,
             template="plotly_white",
-            height=400
+            height=600
         )
         
         return {"type": "plotly", "spec": fig.to_dict()}
