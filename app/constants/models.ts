@@ -6,27 +6,6 @@ import { ModelOption } from "../types";
  */
 export const AVAILABLE_MODELS: ModelOption[] = [
   {
-    id: "gpt-4o-mini",
-    name: "GPT-4o mini",
-    description: "Fast + cheap (good default)",
-    contextLength: 128000,
-    costTier: "low",
-  },
-  {
-    id: "gpt-4o",
-    name: "GPT-4o",
-    description: "Stronger general model",
-    contextLength: 128000,
-    costTier: "high",
-  },
-  {
-    id: "o3-mini",
-    name: "o3-mini",
-    description: "Small reasoning model",
-    contextLength: 200000,
-    costTier: "medium",
-  },
-  {
     id: "gpt-5.1",
     name: "GPT-5.1",
     description: "Latest flagship",
@@ -40,9 +19,16 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     contextLength: 400000,
     costTier: "medium",
   },
+  {
+    id: "o3-mini",
+    name: "o3-mini",
+    description: "Small reasoning model",
+    contextLength: 200000,
+    costTier: "medium",
+  },
 ];
 
-export const DEFAULT_MODEL = "gpt-4o-mini";
+export const DEFAULT_MODEL = "gpt-5.1";
 
 export const isValidModel = (modelId: string): boolean => {
   return AVAILABLE_MODELS.some((model) => model.id === modelId);

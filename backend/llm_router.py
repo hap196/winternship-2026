@@ -112,7 +112,7 @@ def run_chat_with_tools(
     return ("I hit the max tool-call rounds; try simplifying the request.", messages)
 
 def _get_model() -> str:
-    return os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    return os.getenv("OPENAI_MODEL", "gpt-5.1")
 
 
 def _title_fallback(first_message: str) -> str:

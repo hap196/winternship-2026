@@ -90,7 +90,7 @@ Return ONLY a valid JSON object with these exact fields (no markdown, no extra t
             client = OpenAI(api_key=api_key)
 
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=os.getenv("OPENAI_MODEL", "gpt-5.1"),
                 messages=[
                     {"role": "system", "content": "You are a computational biology expert. Return only valid JSON."},
                     {"role": "user", "content": prompt}
